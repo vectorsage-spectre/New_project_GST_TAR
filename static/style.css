@@ -321,6 +321,26 @@ button:hover {
     background: #fff;
 }
 
+.split-block {
+    margin-top: 16px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    background: #fff;
+}
+
+.split-block h3 {
+    margin: 0 0 10px;
+}
+
+.split-table {
+    max-height: 380px;
+}
+
+.split-table table {
+    min-width: 700px;
+}
+
 .table-container {
     max-height: 560px;
     overflow: auto;

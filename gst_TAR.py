@@ -257,6 +257,9 @@ def tar_report_dashboard():
     if not user:
         return redirect("/login")
 
+    def to_lakhs(value):
+        return float((value or 0.0) / 100000.0)
+
     tar_summaries = []
     for tar_type in ["TAR-1", "TAR-2", "TAR-3"]:
         case_count, total_oio_amount, pending_total_amount = (
@@ -275,14 +278,37 @@ def tar_report_dashboard():
         tar_summaries.append({
             "tar_type": tar_type,
             "case_count": int(case_count or 0),
-            "total_oio_amount": float(total_oio_amount or 0.0),
-            "pending_total_amount": float(pending_total_amount or 0.0),
+            "total_oio_lakhs": to_lakhs(total_oio_amount),
+            "pending_total_lakhs": to_lakhs(pending_total_amount),
+        })
+
+    category_rows = (
+        db.session.query(
+            Case.appeal_status,
+            Case.recovery_category,
+            func.count(Case.id),
+            func.coalesce(func.sum(Case.pending_total), 0.0),
+        )
+        .filter(Case.assigned_to == user.name)
+        .group_by(Case.appeal_status, Case.recovery_category)
+        .order_by(Case.appeal_status.asc(), Case.recovery_category.asc())
+        .all()
+    )
+
+    category_split = []
+    for tar_type, recovery_category, case_count, pending_total in category_rows:
+        category_split.append({
+            "tar_type": tar_type or "UNSPECIFIED",
+            "recovery_category": recovery_category or "UNSPECIFIED",
+            "case_count": int(case_count or 0),
+            "pending_total_lakhs": to_lakhs(pending_total),
         })
 
     return render_template(
         "tar_report_dashboard.html",
         officer=user.name,
         tar_summaries=tar_summaries,
+        category_split=category_split,
     )
 
 
