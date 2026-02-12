@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAR Report Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>Logged in as: <b>{{ officer }}</b></div>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>TAR Report Dashboard</h2>
+            <p class="subtitle">Consolidated TAR-wise view of assigned cases and financial exposure.</p>
+            <p class="motto">Desh Sevarth Kar Sanchay</p>
+        </section>
+
+        <section class="dashboard-wrap">
+            <div class="dashboard-grid">
+                {% for row in tar_summaries %}
+                    <article class="metric-card">
+                        <h3>{{ row.tar_type }}</h3>
+                        <div class="metric-line">
+                            <span>Case Count</span>
+                            <strong>{{ row.case_count }}</strong>
+                        </div>
+                        <div class="metric-line">
+                            <span>Total OIO Amount</span>
+                            <strong>{{ "{:,.2f}".format(row.total_oio_amount) }}</strong>
+                        </div>
+                        <div class="metric-line">
+                            <span>Pending Total Amount</span>
+                            <strong>{{ "{:,.2f}".format(row.pending_total_amount) }}</strong>
+                        </div>
+                        <a class="metric-link" href="/live/{{ row.tar_type }}">Open {{ row.tar_type }} Dashboard</a>
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+</div>
+</body>
+</html>

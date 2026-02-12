@@ -19,7 +19,10 @@
                     <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
                     <span>Case Management</span>
                 </div>
-                <a href="{{ request.args.get('from_page', '/live/TAR-3') }}">Back to list</a>
+                <div>
+                    <a href="/tar-report-dashboard">Dashboard</a> |
+                    <a href="{{ request.args.get('from_page', '/live/TAR-3') }}">Back to list</a>
+                </div>
             </div>
             <h2>Case Update Centre</h2>
             <p class="subtitle">Edit case fields and maintain full audit accountability for every change.</p>

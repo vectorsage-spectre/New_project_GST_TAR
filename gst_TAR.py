@@ -144,6 +144,7 @@ from flask import Flask, render_template, request, redirect, session, url_for
 from datetime import timedelta
 from models import db, Case, CaseChange, User
 from flask_migrate import Migrate
+from sqlalchemy import func
 
 
 # ---------------- APP SETUP ----------------
@@ -249,6 +250,42 @@ def live_tar(tar_type):
 
 
 
+# ------------ TAR REPORT DASHBOARD ----------------
+@app.route("/tar-report-dashboard")
+def tar_report_dashboard():
+    user = db.session.get(User, session.get("user_id"))
+    if not user:
+        return redirect("/login")
+
+    tar_summaries = []
+    for tar_type in ["TAR-1", "TAR-2", "TAR-3"]:
+        case_count, total_oio_amount, pending_total_amount = (
+            db.session.query(
+                func.count(Case.id),
+                func.coalesce(func.sum(Case.total_oio), 0.0),
+                func.coalesce(func.sum(Case.pending_total), 0.0),
+            )
+            .filter(
+                Case.appeal_status == tar_type,
+                Case.assigned_to == user.name
+            )
+            .one()
+        )
+
+        tar_summaries.append({
+            "tar_type": tar_type,
+            "case_count": int(case_count or 0),
+            "total_oio_amount": float(total_oio_amount or 0.0),
+            "pending_total_amount": float(pending_total_amount or 0.0),
+        })
+
+    return render_template(
+        "tar_report_dashboard.html",
+        officer=user.name,
+        tar_summaries=tar_summaries,
+    )
+
+
 # ------------ LOGIN ROUTE ----------------
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -262,7 +299,7 @@ def login():
             session.clear()
             session.permanent = True
             session["user_id"] = user.id
-            return redirect("/live/TAR-3")
+            return redirect("/tar-report-dashboard")
         else:
             return render_template("login.html", error="Invalid Login. Please try again.")
 

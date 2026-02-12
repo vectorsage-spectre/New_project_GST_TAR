@@ -269,6 +269,58 @@ button:hover {
     padding: 18px 22px 22px;
 }
 
+.dashboard-wrap {
+    padding: 22px;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.metric-card {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    background: linear-gradient(165deg, #ffffff, #f5f9ff);
+    box-shadow: var(--shadow-soft);
+}
+
+.metric-card h3 {
+    margin: 0 0 12px;
+    font-size: 1.06rem;
+}
+
+.metric-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    border-top: 1px solid #e7eef8;
+    padding-top: 9px;
+    margin-top: 9px;
+}
+
+.metric-line span {
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.metric-line strong {
+    font-family: "Space Grotesk", "Segoe UI", sans-serif;
+    color: #0b327f;
+}
+
+.metric-link {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #fff;
+}
+
 .table-container {
     max-height: 560px;
     overflow: auto;
@@ -436,6 +488,10 @@ td:nth-child(19) {
     }
 
     .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-grid {
         grid-template-columns: 1fr;
     }
 
