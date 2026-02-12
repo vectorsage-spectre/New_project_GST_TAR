@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="GST logo">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f3a98" />
+      <stop offset="1" stop-color="#0a2770" />
+    </linearGradient>
+  </defs>
+  <circle cx="100" cy="100" r="98" fill="url(#bg)" stroke="#f2c230" stroke-width="4" />
+  <circle cx="100" cy="100" r="78" fill="none" stroke="#f2c230" stroke-width="4" />
+  <circle cx="100" cy="100" r="50" fill="#ffffff" stroke="#f2c230" stroke-width="3" />
+  <text x="100" y="95" text-anchor="middle" font-size="28" font-family="Arial, sans-serif" font-weight="700" fill="#0f3a98">GST</text>
+  <text x="100" y="116" text-anchor="middle" font-size="9" font-family="Arial, sans-serif" fill="#0f3a98">GOODS &amp; SERVICES TAX</text>
+  <text x="100" y="34" text-anchor="middle" font-size="11" font-family="Arial, sans-serif" letter-spacing="1.2" fill="#f2c230">INDIA</text>
+  <text x="100" y="174" text-anchor="middle" font-size="10" font-family="Arial, sans-serif" letter-spacing="0.8" fill="#f2c230">DESH SEVARTH KAR SANCHAY</text>
+</svg>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAR Officer Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="login-page">
+<div class="login-wrapper">
+    <div class="login-stage">
+        <div class="login-center">
+            <div class="login-brand">
+                <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+            </div>
+            <div class="login-box">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <strong>CBIC GST Recovery Desk</strong>
+                </div>
+                <h2 class="brand-title">TAR Officer Login</h2>
+                <p>Secure access to the GST recovery operations workspace.</p>
+                <p class="motto-login">Desh Sevarth Kar Sanchay</p>
+
+                {% if error %}
+                    <div class="error"><b>{{ error }}</b></div>
+                {% endif %}
+
+                <form method="POST">
+                    <label>Username</label>
+                    <input type="text" name="username" required>
+
+                    <label>Password</label>
+                    <input type="password" name="password" required>
+
+                    <button type="submit">Login</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

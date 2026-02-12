@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live TAR Register</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>Logged in as: <b>{{ officer }}</b></div>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>Live {{ request.path.split('/')[-1] }} Register</h2>
+            <p class="subtitle">Operational recovery dashboard with search, segmentation, and drill-down editing.</p>
+            <p class="motto">Desh Sevarth Kar Sanchay</p>
+        </section>
+
+        <section class="controls">
+            <div class="bar">
+                <span class="badge">Total Cases: {{ total_count }}</span>
+                {% if has_active_filters %}
+                    <span class="badge">Filtered Cases: {{ filtered_count }}</span>
+                {% endif %}
+            </div>
+
+            <form method="get" class="bar">
+                <input type="text" name="q"
+                    placeholder="Search GSTIN / Name / OIO"
+                    value="{{ request.args.get('q','') }}">
+
+                <input type="hidden" name="cat" value="{{ request.args.get('cat','') }}">
+                <input type="hidden" name="rng" value="{{ request.args.get('rng','') }}">
+                <input type="hidden" name="sort" value="{{ request.args.get('sort','') }}">
+                <input type="hidden" name="order" value="{{ request.args.get('order','') }}">
+
+                <button type="submit">Search</button>
+            </form>
+
+            <form method="get" class="bar">
+                <b>Filter</b>
+
+                <select name="cat">
+                    <option value="">All Categories</option>
+                    {% for c in categories %}
+                        <option value="{{c}}" {% if request.args.get('cat')==c %}selected{% endif %}>{{c}}</option>
+                    {% endfor %}
+                </select>
+
+                <select name="rng">
+                    <option value="">All Ranges</option>
+                    {% for r in ['AWD5','BWD5','CWD5','DWD5','EWD5'] %}
+                        <option value="{{r}}" {% if request.args.get('rng')==r %}selected{% endif %}>{{r}}</option>
+                    {% endfor %}
+                </select>
+
+                <input type="hidden" name="q" value="{{ request.args.get('q','') }}">
+                <input type="hidden" name="sort" value="{{ request.args.get('sort','') }}">
+                <input type="hidden" name="order" value="{{ request.args.get('order','') }}">
+
+                <button type="submit">Apply Filter</button>
+            </form>
+
+            <form method="get" class="bar">
+                <b>Sort</b>
+
+                <select name="sort">
+                    <option value="recovery_category" {% if request.args.get('sort') == 'recovery_category' %}selected{% endif %}>Category</option>
+                    <option value="serial_no" {% if request.args.get('sort') == 'serial_no' %}selected{% endif %}>Sl.No.</option>
+                    <option value="party_name" {% if request.args.get('sort') == 'party_name' %}selected{% endif %}>Taxpayer Name</option>
+                    <option value="gstin_raw" {% if request.args.get('sort') == 'gstin_raw' %}selected{% endif %}>GSTIN</option>
+                    <option value="tax_oio" {% if request.args.get('sort') == 'tax_oio' %}selected{% endif %}>GST OIO</option>
+                    <option value="total_oio" {% if request.args.get('sort') == 'total_oio' %}selected{% endif %}>Total OIO</option>
+                    <option value="total_realised" {% if request.args.get('sort') == 'total_realised' %}selected{% endif %}>Total Realised</option>
+                    <option value="pending_total" {% if request.args.get('sort') == 'pending_total' %}selected{% endif %}>Pending Total</option>
+                    <option value="range_code" {% if request.args.get('sort') == 'range_code' %}selected{% endif %}>Range</option>
+                </select>
+
+                <select name="order">
+                    <option value="asc" {% if request.args.get('order') == 'asc' %}selected{% endif %}>Ascending</option>
+                    <option value="desc" {% if request.args.get('order', 'desc') == 'desc' %}selected{% endif %}>Descending</option>
+                </select>
+
+                <input type="hidden" name="q" value="{{ request.args.get('q','') }}">
+                <input type="hidden" name="cat" value="{{ request.args.get('cat','') }}">
+                <input type="hidden" name="rng" value="{{ request.args.get('rng','') }}">
+
+                <button type="submit">Sort</button>
+            </form>
+        </section>
+
+        <div class="nav">
+            <a href="/live/TAR-1">TAR-1</a>
+            <a href="/live/TAR-2">TAR-2</a>
+            <a href="/live/TAR-3">TAR-3</a>
+        </div>
+
+        {% if request.args.get('msg') == 'updated' %}
+            <div class="success">Case updated successfully.</div>
+        {% endif %}
+
+        <section class="table-wrap">
+            <div class="table-container">
+                <table>
+                    <tr>
+                        <th>CATEGORY</th>
+                        <th>Sl.No.</th>
+                        <th>Name</th>
+                        <th>GSTIN</th>
+                        <th>OIO</th>
+                        <th>Issue</th>
+                        <th>GST OIO</th>
+                        <th>Interest OIO</th>
+                        <th>Penalty OIO</th>
+                        <th>Total OIO</th>
+                        <th>GST Realised</th>
+                        <th>Interest Realised</th>
+                        <th>Penalty Realised</th>
+                        <th>Total Realised</th>
+                        <th>Pending GST</th>
+                        <th>Pending Interest</th>
+                        <th>Pending Penalty</th>
+                        <th>Pending Total</th>
+                        <th>Remarks</th>
+                        <th>Range</th>
+                    </tr>
+
+                    {% for case in cases %}
+                    <tr class="clickable" onclick="location.href='/case/{{ case.id }}?from_page={{ request.full_path|urlencode }}'">
+                        <td>{{ case.recovery_category }}</td>
+                        <td>{{ case.serial_no }}</td>
+                        <td>{{ case.party_name }}</td>
+                        <td>{{ case.gstin_raw }}</td>
+                        <td>{{ case.oio_display }}</td>
+                        <td>{{ case.issue_brief }}</td>
+                        <td>{{ case.tax_oio }}</td>
+                        <td>{{ case.interest_oio }}</td>
+                        <td>{{ case.penalty_oio }}</td>
+                        <td>{{ case.total_oio }}</td>
+                        <td>{{ case.gst_realised }}</td>
+                        <td>{{ case.interest_realised }}</td>
+                        <td>{{ case.penalty_realised }}</td>
+                        <td>{{ case.total_realised }}</td>
+                        <td>{{ case.pending_gst }}</td>
+                        <td>{{ case.pending_interest }}</td>
+                        <td>{{ case.pending_penalty }}</td>
+                        <td>{{ case.pending_total }}</td>
+                        <td>{{ case.comments }}</td>
+                        <td>{{ case.range_code }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+
+                {% if not cases %}
+                    <div class="empty-state">No cases match the current filters.</div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+</body>
+</html>

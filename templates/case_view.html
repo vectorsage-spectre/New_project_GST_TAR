@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Case Update Centre</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <span>Case Management</span>
+                </div>
+                <a href="{{ request.args.get('from_page', '/live/TAR-3') }}">Back to list</a>
+            </div>
+            <h2>Case Update Centre</h2>
+            <p class="subtitle">Edit case fields and maintain full audit accountability for every change.</p>
+            <p class="motto">Desh Sevarth Kar Sanchay</p>
+        </section>
+
+        <form method="POST">
+            <section class="form-grid">
+                {% for field, label in labels.items() %}
+                    <div class="field">
+                        <label>{{ label }}</label>
+                        <input
+                            type="text"
+                            name="{{ field }}"
+                            value="{{ case|attr(field) or '' }}"
+                        >
+                    </div>
+                {% endfor %}
+            </section>
+
+            <div class="actions">
+                <button type="submit">Save Changes</button>
+            </div>
+        </form>
+
+        <h3 class="audit-title">Change History (Audit Trail)</h3>
+
+        <section class="table-wrap">
+            <div class="table-container">
+                <table>
+                    <tr>
+                        <th>Time</th>
+                        <th>Officer</th>
+                        <th>Field</th>
+                        <th>Old Value</th>
+                        <th>New Value</th>
+                    </tr>
+
+                    {% for c in changes %}
+                    <tr>
+                        <td>{{ c.timestamp.strftime('%d-%m-%Y %H:%M') }}</td>
+                        <td>{{ c.changed_by }}</td>
+                        <td>{{ labels.get(c.field_changed, c.field_changed) }}</td>
+                        <td>{{ c.old_value }}</td>
+                        <td>{{ c.new_value }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+
+                {% if not changes %}
+                    <div class="empty-state">No audit events yet for this case.</div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+</body>
+</html>
