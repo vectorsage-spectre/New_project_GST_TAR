@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import UniqueConstraint
 
 
 db = SQLAlchemy()
@@ -101,3 +102,32 @@ class User(db.Model):
 
     def __repr__(self):
         return f"<User {self.username}>"
+
+
+# ---------------- MONTHLY CATEGORY SNAPSHOT ----------------
+class MonthlyCategorySnapshot(db.Model):
+    __tablename__ = "monthly_category_snapshot"
+    __table_args__ = (
+        UniqueConstraint(
+            "snapshot_month",
+            "assigned_to",
+            "tar_type",
+            "recovery_category",
+            name="uq_monthly_category_snapshot",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    snapshot_month = db.Column(db.String(7), nullable=False)  # YYYY-MM
+    assigned_to = db.Column(db.String(100), nullable=False)
+    tar_type = db.Column(db.String(20), nullable=False)
+    recovery_category = db.Column(db.String(50), nullable=False)
+
+    case_count = db.Column(db.Integer, default=0)
+    total_oio_amount = db.Column(db.Float, default=0.0)
+    pending_total_amount = db.Column(db.Float, default=0.0)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Snapshot {self.snapshot_month} {self.tar_type} {self.recovery_category}>"

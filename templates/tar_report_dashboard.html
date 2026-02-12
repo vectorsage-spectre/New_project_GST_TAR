@@ -27,6 +27,18 @@
         </section>
 
         <section class="dashboard-wrap">
+            {% if request.args.get("msg") == "seeded" %}
+                <div class="success">Snapshot saved for {{ request.args.get("snapshot_month") }} with {{ request.args.get("rows") }} category rows.</div>
+            {% elif request.args.get("msg") == "invalid_month" %}
+                <div class="error">Invalid month format. Use YYYY-MM.</div>
+            {% endif %}
+
+            <form method="post" action="/tar-report-dashboard/seed-month" class="bar">
+                <b>Seed Base/Month Snapshot</b>
+                <input type="month" name="snapshot_month" value="{{ default_base_month }}" required>
+                <button type="submit">Save Snapshot</button>
+            </form>
+
             <p class="subtitle"><b>Legend:</b> All amounts are shown in <b>₹ Lakhs</b> and rounded to 2 decimals.</p>
             <div class="dashboard-grid">
                 {% for row in tar_summaries %}
@@ -44,7 +56,10 @@
                             <span>Pending Total (₹ Lakhs)</span>
                             <strong>₹ {{ "{:,.2f}".format(row.pending_total_lakhs) }}</strong>
                         </div>
-                        <a class="metric-link" href="/live/{{ row.tar_type }}">Open {{ row.tar_type }} Dashboard</a>
+                        <div class="metric-actions">
+                            <a class="metric-link" href="/live/{{ row.tar_type }}">Open {{ row.tar_type }} Case Lists</a>
+                            <a class="metric-link" href="/tar-report-dashboard/details/{{ row.tar_type }}?base_month={{ default_base_month }}&compare_month={{ current_month }}">Details</a>
+                        </div>
                     </article>
                 {% endfor %}
             </div>

@@ -142,7 +142,7 @@ def seed_master_excel(file_path):
 # ---------------- IMPORTS ----------------
 from flask import Flask, render_template, request, redirect, session, url_for
 from datetime import timedelta
-from models import db, Case, CaseChange, User
+from models import db, Case, CaseChange, User, MonthlyCategorySnapshot
 from flask_migrate import Migrate
 from sqlalchemy import func
 
@@ -158,6 +158,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
 migrate = Migrate(app, db)
+with app.app_context():
+    db.create_all()
 
 
 # ---------------- HOME ROUTE ----------------
@@ -213,6 +215,75 @@ def get_filtered_cases(tar_type, officer_name):
         q = q.order_by(column.desc())
 
     return q.all()
+
+
+def is_valid_month_key(value):
+    if not value or len(value) != 7 or value[4] != "-":
+        return False
+    year_part = value[:4]
+    month_part = value[5:]
+    if not (year_part.isdigit() and month_part.isdigit()):
+        return False
+    month_number = int(month_part)
+    return 1 <= month_number <= 12
+
+
+def aggregate_category_metrics(assigned_to, tar_type=None):
+    query = (
+        db.session.query(
+            Case.appeal_status,
+            Case.recovery_category,
+            func.count(Case.id).label("case_count"),
+            func.coalesce(func.sum(Case.total_oio), 0.0).label("total_oio_amount"),
+            func.coalesce(func.sum(Case.pending_total), 0.0).label("pending_total_amount"),
+        )
+        .filter(Case.assigned_to == assigned_to)
+    )
+
+    if tar_type:
+        query = query.filter(Case.appeal_status == tar_type)
+
+    rows = (
+        query.group_by(Case.appeal_status, Case.recovery_category)
+        .order_by(Case.appeal_status.asc(), Case.recovery_category.asc())
+        .all()
+    )
+
+    metrics = []
+    for row_tar, row_category, row_count, row_total_oio, row_pending in rows:
+        metrics.append({
+            "tar_type": row_tar or "UNSPECIFIED",
+            "recovery_category": row_category or "UNSPECIFIED",
+            "case_count": int(row_count or 0),
+            "total_oio_amount": float(row_total_oio or 0.0),
+            "pending_total_amount": float(row_pending or 0.0),
+        })
+    return metrics
+
+
+def save_monthly_snapshot(assigned_to, snapshot_month):
+    metrics = aggregate_category_metrics(assigned_to)
+
+    MonthlyCategorySnapshot.query.filter_by(
+        assigned_to=assigned_to,
+        snapshot_month=snapshot_month
+    ).delete()
+
+    for row in metrics:
+        db.session.add(
+            MonthlyCategorySnapshot(
+                snapshot_month=snapshot_month,
+                assigned_to=assigned_to,
+                tar_type=row["tar_type"],
+                recovery_category=row["recovery_category"],
+                case_count=row["case_count"],
+                total_oio_amount=row["total_oio_amount"],
+                pending_total_amount=row["pending_total_amount"],
+            )
+        )
+
+    db.session.commit()
+    return len(metrics)
 
 
 
@@ -309,6 +380,154 @@ def tar_report_dashboard():
         officer=user.name,
         tar_summaries=tar_summaries,
         category_split=category_split,
+        default_base_month="2026-01",
+        current_month=datetime.now().strftime("%Y-%m"),
+    )
+
+
+@app.route("/tar-report-dashboard/seed-month", methods=["POST"])
+def seed_month_snapshot():
+    user = db.session.get(User, session.get("user_id"))
+    if not user:
+        return redirect("/login")
+
+    snapshot_month = request.form.get("snapshot_month", "").strip()
+    if not is_valid_month_key(snapshot_month):
+        return redirect("/tar-report-dashboard?msg=invalid_month")
+
+    saved_rows = save_monthly_snapshot(user.name, snapshot_month)
+    return redirect(
+        f"/tar-report-dashboard?msg=seeded&snapshot_month={snapshot_month}&rows={saved_rows}"
+    )
+
+
+@app.route("/tar-report-dashboard/details/<tar_type>")
+def tar_report_details(tar_type):
+    user = db.session.get(User, session.get("user_id"))
+    if not user:
+        return redirect("/login")
+
+    tar_type = tar_type.upper()
+    if tar_type not in ["TAR-1", "TAR-2", "TAR-3"]:
+        return redirect("/tar-report-dashboard")
+
+    base_month = request.args.get("base_month", "2026-01").strip()
+    compare_month = request.args.get("compare_month", datetime.now().strftime("%Y-%m")).strip()
+
+    if not is_valid_month_key(base_month):
+        base_month = "2026-01"
+    if not is_valid_month_key(compare_month):
+        compare_month = datetime.now().strftime("%Y-%m")
+
+    base_rows = (
+        MonthlyCategorySnapshot.query
+        .filter_by(
+            assigned_to=user.name,
+            tar_type=tar_type,
+            snapshot_month=base_month
+        )
+        .all()
+    )
+    compare_rows = (
+        MonthlyCategorySnapshot.query
+        .filter_by(
+            assigned_to=user.name,
+            tar_type=tar_type,
+            snapshot_month=compare_month
+        )
+        .all()
+    )
+
+    base_map = {
+        row.recovery_category: {
+            "case_count": int(row.case_count or 0),
+            "total_oio_amount": float(row.total_oio_amount or 0.0),
+            "pending_total_amount": float(row.pending_total_amount or 0.0),
+        }
+        for row in base_rows
+    }
+
+    if compare_rows:
+        compare_map = {
+            row.recovery_category: {
+                "case_count": int(row.case_count or 0),
+                "total_oio_amount": float(row.total_oio_amount or 0.0),
+                "pending_total_amount": float(row.pending_total_amount or 0.0),
+            }
+            for row in compare_rows
+        }
+        compare_source = f"Snapshot {compare_month}"
+    else:
+        live_rows = [
+            row for row in aggregate_category_metrics(user.name, tar_type)
+            if row["tar_type"] == tar_type
+        ]
+        compare_map = {
+            row["recovery_category"]: {
+                "case_count": row["case_count"],
+                "total_oio_amount": row["total_oio_amount"],
+                "pending_total_amount": row["pending_total_amount"],
+            }
+            for row in live_rows
+        }
+        compare_source = "Live Current Data"
+
+    preferred_order = TAR_CATEGORY_MAP.get(tar_type, [])
+    category_set = set(base_map.keys()) | set(compare_map.keys())
+    ordered_categories = [c for c in preferred_order if c in category_set]
+    ordered_categories += sorted([c for c in category_set if c not in preferred_order])
+
+    def lakhs(amount):
+        return float(amount / 100000.0)
+
+    detail_rows = []
+    totals = {
+        "base_count": 0,
+        "base_total_oio_lakhs": 0.0,
+        "base_pending_lakhs": 0.0,
+        "compare_count": 0,
+        "compare_total_oio_lakhs": 0.0,
+        "compare_pending_lakhs": 0.0,
+    }
+
+    for category in ordered_categories:
+        base = base_map.get(category, {"case_count": 0, "total_oio_amount": 0.0, "pending_total_amount": 0.0})
+        compare = compare_map.get(category, {"case_count": 0, "total_oio_amount": 0.0, "pending_total_amount": 0.0})
+
+        row = {
+            "recovery_category": category,
+            "base_count": base["case_count"],
+            "base_total_oio_lakhs": lakhs(base["total_oio_amount"]),
+            "base_pending_lakhs": lakhs(base["pending_total_amount"]),
+            "compare_count": compare["case_count"],
+            "compare_total_oio_lakhs": lakhs(compare["total_oio_amount"]),
+            "compare_pending_lakhs": lakhs(compare["pending_total_amount"]),
+        }
+        row["change_count"] = row["compare_count"] - row["base_count"]
+        row["change_total_oio_lakhs"] = row["compare_total_oio_lakhs"] - row["base_total_oio_lakhs"]
+        row["change_pending_lakhs"] = row["compare_pending_lakhs"] - row["base_pending_lakhs"]
+        detail_rows.append(row)
+
+        totals["base_count"] += row["base_count"]
+        totals["base_total_oio_lakhs"] += row["base_total_oio_lakhs"]
+        totals["base_pending_lakhs"] += row["base_pending_lakhs"]
+        totals["compare_count"] += row["compare_count"]
+        totals["compare_total_oio_lakhs"] += row["compare_total_oio_lakhs"]
+        totals["compare_pending_lakhs"] += row["compare_pending_lakhs"]
+
+    totals["change_count"] = totals["compare_count"] - totals["base_count"]
+    totals["change_total_oio_lakhs"] = totals["compare_total_oio_lakhs"] - totals["base_total_oio_lakhs"]
+    totals["change_pending_lakhs"] = totals["compare_pending_lakhs"] - totals["base_pending_lakhs"]
+
+    return render_template(
+        "tar_report_details.html",
+        officer=user.name,
+        tar_type=tar_type,
+        base_month=base_month,
+        compare_month=compare_month,
+        compare_source=compare_source,
+        detail_rows=detail_rows,
+        totals=totals,
     )
 
 

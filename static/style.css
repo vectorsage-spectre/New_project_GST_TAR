@@ -321,6 +321,16 @@ button:hover {
     background: #fff;
 }
 
+.metric-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.metric-actions .metric-link {
+    margin-top: 10px;
+}
+
 .split-block {
     margin-top: 16px;
     border: 1px solid var(--border);
@@ -339,6 +349,14 @@ button:hover {
 
 .split-table table {
     min-width: 700px;
+}
+
+.details-table table {
+    min-width: 1450px;
+}
+
+.totals-row {
+    background: #eef4ff;
 }
 
 .table-container {
