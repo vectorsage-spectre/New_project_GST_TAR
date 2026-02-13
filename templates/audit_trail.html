@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Trail</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>Audit Trail | <b>{{ officer }}</b></div>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>Audit Trail</h2>
+            <p class="subtitle">
+                {% if role == "ADMIN" %}
+                    Centralised audit trail (latest 500 records).
+                {% else %}
+                    Your changes only (latest 500 records).
+                {% endif %}
+            </p>
+        </section>
+
+        <div class="nav">
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/notebook">Notebook</a>
+            <a href="/movement-ledger">Movement Ledger</a>
+            <a href="/audit-trail">Audit Trail</a>
+        </div>
+
+        <section class="controls">
+            <form method="get" class="bar">
+                <input type="text" name="q" value="{{ request.args.get('q','') }}" placeholder="Search field/old/new">
+                <input type="text" name="actor" value="{{ request.args.get('actor','') }}" placeholder="Officer name">
+                <input type="text" name="case_id" value="{{ request.args.get('case_id','') }}" placeholder="Case ID">
+                <button type="submit">Filter</button>
+                <a class="metric-link" href="/audit-trail">Clear</a>
+            </form>
+        </section>
+
+        <section class="table-wrap">
+            <div class="table-container split-table">
+                <table style="min-width: 1100px;">
+                    <tr>
+                        <th>Time (IST)</th>
+                        <th>Officer</th>
+                        <th>Case</th>
+                        <th>Field</th>
+                        <th>Old Value</th>
+                        <th>New Value</th>
+                    </tr>
+                    {% for r in rows %}
+                        <tr>
+                            <td>{{ r.timestamp|ist_datetime }}</td>
+                            <td>{{ r.changed_by }}</td>
+                            <td><a href="/case/{{ r.case_id }}">{{ r.case_id }}</a></td>
+                            <td>{{ labels.get(r.field_changed, r.field_changed) }}</td>
+                            <td>{{ r.old_value }}</td>
+                            <td>{{ r.new_value }}</td>
+                        </tr>
+                    {% endfor %}
+                </table>
+                {% if not rows %}
+                    <div class="empty-state">No audit entries found.</div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+</body>
+</html>
+

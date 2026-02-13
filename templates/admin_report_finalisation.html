@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Report Finalisation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>Admin | <b>{{ officer }}</b></div>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>Report Month Finalisation</h2>
+            <p class="subtitle">Set the finalisation date for each report month (IST). TAR detail receipts/disposals will use this as the month end window.</p>
+        </section>
+
+        <div class="nav">
+            <a href="/profile">Profile</a>
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/notebook">Notebook</a>
+            <a href="/movement-ledger">Movement Ledger</a>
+            <a href="/admin/mapping">Admin Mapping</a>
+            <a href="/admin/forgot-key">Admin Forgot Key</a>
+        </div>
+
+        <section class="dashboard-wrap">
+            {% if error %}
+                <div class="error">{{ error }}</div>
+            {% endif %}
+            {% if success %}
+                <div class="success">{{ success }}</div>
+            {% endif %}
+
+            <div class="split-block">
+                <h3>Set/Update Finalisation</h3>
+                <p class="subtitle">
+                    Policy window: from <b>22nd</b> of the month to <b>14th</b> of the next month (IST).
+                    Finalisation date is stored and used as end-of-window for the month.
+                </p>
+                <form method="POST" class="bar">
+                    <input type="month" name="snapshot_month" value="{{ default_month }}" required>
+                    <input type="date" name="finalised_date" required title="Finalised date (IST)">
+                    <input type="text" name="note" placeholder="Note (optional)" style="min-width: 240px;">
+                    <button type="submit">Save Finalisation</button>
+                </form>
+            </div>
+
+            <div class="split-block">
+                <h3>Existing Finalisations</h3>
+                <div class="table-container split-table">
+                    <table style="min-width: 900px;">
+                        <tr>
+                            <th>Month</th>
+                            <th>Finalised Date (IST)</th>
+                            <th>Finalised By</th>
+                            <th>Note</th>
+                        </tr>
+                        {% for r in rows %}
+                            <tr>
+                                <td>{{ r.snapshot_month }}</td>
+                                <td>{{ r.finalised_at|ist_datetime }}</td>
+                                <td>{{ r.finalised_by }}</td>
+                                <td>{{ r.note or "" }}</td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                    {% if not rows %}
+                        <div class="empty-state">No finalisation dates set yet.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+</body>
+</html>
+

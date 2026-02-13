@@ -18,6 +18,7 @@
                 <div class="logo-chip">
                     <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
                     <div>Logged in as: <b>{{ officer }}</b></div>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
                 </div>
                 <a href="/logout">Logout</a>
             </div>
@@ -32,6 +33,8 @@
                 {% if has_active_filters %}
                     <span class="badge">Filtered Cases: {{ filtered_count }}</span>
                 {% endif %}
+                <a class="metric-link" href="{{ export_url }}">Download Excel</a>
+                <a class="metric-link" href="/case/new/{{ tar_type }}?from_page={{ request.full_path|urlencode }}">Add New Case</a>
             </div>
 
             <form method="get" class="bar">
@@ -45,6 +48,7 @@
                 <input type="hidden" name="order" value="{{ request.args.get('order','') }}">
 
                 <button type="submit">Search</button>
+                <a class="metric-link" href="/live/{{ tar_type }}?cat={{ request.args.get('cat','') }}&rng={{ request.args.get('rng','') }}&sort={{ request.args.get('sort','') }}&order={{ request.args.get('order','desc') }}">Clear Search</a>
             </form>
 
             <form method="get" class="bar">
@@ -75,15 +79,15 @@
                 <b>Sort</b>
 
                 <select name="sort">
-                    <option value="recovery_category" {% if request.args.get('sort') == 'recovery_category' %}selected{% endif %}>Category</option>
-                    <option value="serial_no" {% if request.args.get('sort') == 'serial_no' %}selected{% endif %}>Sl.No.</option>
-                    <option value="party_name" {% if request.args.get('sort') == 'party_name' %}selected{% endif %}>Taxpayer Name</option>
-                    <option value="gstin_raw" {% if request.args.get('sort') == 'gstin_raw' %}selected{% endif %}>GSTIN</option>
-                    <option value="tax_oio" {% if request.args.get('sort') == 'tax_oio' %}selected{% endif %}>GST OIO</option>
-                    <option value="total_oio" {% if request.args.get('sort') == 'total_oio' %}selected{% endif %}>Total OIO</option>
-                    <option value="total_realised" {% if request.args.get('sort') == 'total_realised' %}selected{% endif %}>Total Realised</option>
-                    <option value="pending_total" {% if request.args.get('sort') == 'pending_total' %}selected{% endif %}>Pending Total</option>
-                    <option value="range_code" {% if request.args.get('sort') == 'range_code' %}selected{% endif %}>Range</option>
+                    <option value="recovery_category" {% if request.args.get('sort','pending_total') == 'recovery_category' %}selected{% endif %}>Category</option>
+                    <option value="serial_no" {% if request.args.get('sort','pending_total') == 'serial_no' %}selected{% endif %}>Sl.No.</option>
+                    <option value="party_name" {% if request.args.get('sort','pending_total') == 'party_name' %}selected{% endif %}>Taxpayer Name</option>
+                    <option value="gstin_raw" {% if request.args.get('sort','pending_total') == 'gstin_raw' %}selected{% endif %}>GSTIN</option>
+                    <option value="tax_oio" {% if request.args.get('sort','pending_total') == 'tax_oio' %}selected{% endif %}>GST OIO</option>
+                    <option value="total_oio" {% if request.args.get('sort','pending_total') == 'total_oio' %}selected{% endif %}>Total OIO</option>
+                    <option value="total_realised" {% if request.args.get('sort','pending_total') == 'total_realised' %}selected{% endif %}>Total Realised</option>
+                    <option value="pending_total" {% if request.args.get('sort','pending_total') == 'pending_total' %}selected{% endif %}>Pending Total</option>
+                    <option value="range_code" {% if request.args.get('sort','pending_total') == 'range_code' %}selected{% endif %}>Range</option>
                 </select>
 
                 <select name="order">
@@ -101,6 +105,8 @@
 
         <div class="nav">
             <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/notebook">Notebook</a>
+            <a href="/movement-ledger">Movement Ledger</a>
             <a href="/live/TAR-1">TAR-1</a>
             <a href="/live/TAR-2">TAR-2</a>
             <a href="/live/TAR-3">TAR-3</a>
@@ -108,11 +114,15 @@
 
         {% if request.args.get('msg') == 'updated' %}
             <div class="success">Case updated successfully.</div>
+        {% elif request.args.get('msg') == 'created' %}
+            <div class="success">New case added successfully.</div>
+        {% elif request.args.get('msg') == 'disposed' %}
+            <div class="success">Case disposed and archived successfully.</div>
         {% endif %}
 
         <section class="table-wrap">
             <div class="table-container">
-                <table>
+                <table class="case-table">
                     <tr>
                         <th>CATEGORY</th>
                         <th>Sl.No.</th>
@@ -124,6 +134,7 @@
                         <th>Interest OIO</th>
                         <th>Penalty OIO</th>
                         <th>Total OIO</th>
+                        <th>Pre-deposit Paid</th>
                         <th>GST Realised</th>
                         <th>Interest Realised</th>
                         <th>Penalty Realised</th>
@@ -144,19 +155,22 @@
                         <td>{{ case.gstin_raw }}</td>
                         <td>{{ case.oio_display }}</td>
                         <td>{{ case.issue_brief }}</td>
-                        <td>{{ case.tax_oio }}</td>
-                        <td>{{ case.interest_oio }}</td>
-                        <td>{{ case.penalty_oio }}</td>
-                        <td>{{ case.total_oio }}</td>
-                        <td>{{ case.gst_realised }}</td>
-                        <td>{{ case.interest_realised }}</td>
-                        <td>{{ case.penalty_realised }}</td>
-                        <td>{{ case.total_realised }}</td>
-                        <td>{{ case.pending_gst }}</td>
-                        <td>{{ case.pending_interest }}</td>
-                        <td>{{ case.pending_penalty }}</td>
-                        <td>{{ case.pending_total }}</td>
-                        <td>{{ case.comments }}</td>
+                        <td>{{ case.tax_oio|num0 }}</td>
+                        <td>{{ case.interest_oio|num0 }}</td>
+                        <td>{{ case.penalty_oio|num0 }}</td>
+                        <td>{{ case.total_oio|num0 }}</td>
+                        <td>{{ case.predeposit_details|num0 }}</td>
+                        <td>{{ case.gst_realised|num0 }}</td>
+                        <td>{{ case.interest_realised|num0 }}</td>
+                        <td>{{ case.penalty_realised|num0 }}</td>
+                        <td>{{ case.total_realised|num0 }}</td>
+                        <td>{{ case.pending_gst|num0 }}</td>
+                        <td>{{ case.pending_interest|num0 }}</td>
+                        <td>{{ case.pending_penalty|num0 }}</td>
+                        <td>{{ case.pending_total|num0 }}</td>
+                        <td>
+                            <div class="remarks-cell">{{ case.comments }}</div>
+                        </td>
                         <td>{{ case.range_code }}</td>
                     </tr>
                     {% endfor %}

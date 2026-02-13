@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>{{ officer }} ({{ role }})</div>
+                    <span class="profile-chip">{{ officer[0]|upper }}</span>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>Profile</h2>
+            <p class="subtitle">Your activity, mapping summary, and account controls.</p>
+        </section>
+
+        <div class="nav">
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/tar-report-archives">Archives</a>
+            <a href="/notebook">Notebook</a>
+            <a href="/movement-ledger">Movement Ledger</a>
+            <a href="/audit-trail">Audit Trail</a>
+            {% if role == "ADMIN" %}
+                <a href="/admin/forgot-key">Admin Forgot Key</a>
+                <a href="/admin/mapping">Admin Mapping</a>
+                <a href="/admin/report-finalisation">Report Finalisation</a>
+                <a href="/admin/backups">Backups</a>
+            {% endif %}
+        </div>
+
+        <section class="dashboard-wrap profile-grid">
+            <aside class="split-block">
+                <h3>Category Summary (Mapped Cases)</h3>
+                <div class="table-container split-table profile-summary">
+                    <table>
+                        <tr>
+                            <th>Category</th>
+                            <th>Description</th>
+                            <th>Count</th>
+                            <th>Pending (₹ Lakhs)</th>
+                        </tr>
+                        {% for cat, count, pending in category_summary %}
+                            <tr>
+                                <td>{{ cat }}</td>
+                                <td>{{ category_details.get(cat, "") }}</td>
+                                <td>{{ count }}</td>
+                                <td>₹ {{ "{:,.2f}".format((pending or 0) / 100000) }}</td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            </aside>
+
+            <div>
+                {% if request.args.get("msg") == "password_changed" %}
+                    <div class="success">Password changed successfully.</div>
+                {% elif request.args.get("msg") == "bad_current" %}
+                    <div class="error">Current password is incorrect.</div>
+                {% elif request.args.get("msg") == "short_password" %}
+                    <div class="error">New password must be at least 6 characters.</div>
+                {% elif request.args.get("msg") == "confirm_mismatch" %}
+                    <div class="error">New password and confirm password do not match.</div>
+                {% elif request.args.get("msg") == "pin_changed" %}
+                    <div class="success">Recovery PIN updated successfully.</div>
+                {% elif request.args.get("msg") == "pin_bad_current" %}
+                    <div class="error">Current password is incorrect for recovery PIN update.</div>
+                {% elif request.args.get("msg") == "pin_short" %}
+                    <div class="error">Recovery PIN must be at least 4 characters.</div>
+                {% elif request.args.get("msg") == "pin_mismatch" %}
+                    <div class="error">Recovery PIN and confirm PIN do not match.</div>
+                {% endif %}
+
+                <div class="split-block">
+                    <h3>Mapping by TAR</h3>
+                    <div class="table-container split-table">
+                        <table>
+                            <tr>
+                                <th>TAR</th>
+                                <th>Mapped Count</th>
+                                <th>Pending (₹ Lakhs)</th>
+                            </tr>
+                            {% for tar, count, pending in tar_mapping %}
+                                <tr>
+                                    <td>{{ tar }}</td>
+                                    <td>{{ count }}</td>
+                                    <td>₹ {{ "{:,.2f}".format((pending or 0) / 100000) }}</td>
+                                </tr>
+                            {% endfor %}
+                        </table>
+                    </div>
+                </div>
+
+                <div class="split-block">
+                    <h3>Change Password</h3>
+                    <form method="POST" action="/profile/change-password" class="bar">
+                        <input type="password" name="current_password" placeholder="Current Password" required>
+                        <input type="password" name="new_password" placeholder="New Password" required>
+                        <input type="password" name="confirm_password" placeholder="Confirm New Password" required>
+                        <button type="submit">Update Password</button>
+                    </form>
+                </div>
+
+                <div class="split-block">
+                    <h3>Recovery PIN (Consent Control)</h3>
+                    <p class="subtitle">
+                        {% if has_recovery_pin %}
+                            Recovery PIN is configured.
+                        {% else %}
+                            Recovery PIN is not set. Set it now to protect forgot-password flow.
+                        {% endif %}
+                    </p>
+                    <form method="POST" action="/profile/change-recovery-pin" class="bar">
+                        <input type="password" name="current_password_for_pin" placeholder="Current Password" required>
+                        <input type="password" name="new_recovery_pin" placeholder="New Recovery PIN" required>
+                        <input type="password" name="confirm_recovery_pin" placeholder="Confirm Recovery PIN" required>
+                        <button type="submit">Save Recovery PIN</button>
+                    </form>
+                </div>
+
+                {# Audit trail removed from UI as requested #}
+
+                <div class="split-block">
+                    <h3>Case Movement Summary (By You)</h3>
+                    <p class="subtitle">Aggregated movements between lists (TAR/Category). Amounts are snapshots of pending total at the moment of movement.</p>
+                    <div class="table-container split-table">
+                        <table>
+                            <tr>
+                                <th>From (TAR/Category)</th>
+                                <th>To (TAR/Category)</th>
+                                <th>Count</th>
+                                <th>Pending Snapshot Sum (₹ Lakhs)</th>
+                            </tr>
+                            {% for r in movement_agg %}
+                                <tr>
+                                    <td>{{ (r[0] or '-') ~ ' / ' ~ (r[1] or '-') }}</td>
+                                    <td>{{ (r[2] or '-') ~ ' / ' ~ (r[3] or '-') }}</td>
+                                    <td>{{ r[4] }}</td>
+                                    <td>₹ {{ "{:,.2f}".format((r[5] or 0) / 100000) }}</td>
+                                </tr>
+                            {% endfor %}
+                        </table>
+                        {% if not movement_agg %}
+                            <div class="empty-state">No movements recorded yet for your user.</div>
+                        {% endif %}
+                    </div>
+                    <div class="bar" style="margin-top:10px;">
+                        <a class="metric-link" href="/movement-ledger">Open Full Movement Ledger</a>
+                    </div>
+                </div>
+
+                <div class="split-block">
+                    <h3>Recent Movements (By You)</h3>
+                    <div class="table-container split-table">
+                        <table>
+                            <tr>
+                                <th>Time (IST)</th>
+                                <th>Case</th>
+                                <th>Source</th>
+                                <th>From</th>
+                                <th>To</th>
+                                <th>Pending Snapshot (₹)</th>
+                            </tr>
+                            {% for m in recent_movements %}
+                                <tr>
+                                    <td>{{ m.moved_at|ist_datetime }}</td>
+                                    <td><a href="/case/{{ m.case_id }}">{{ m.case_id }}</a></td>
+                                    <td>{{ m.source }}</td>
+                                    <td>{{ (m.from_tar_type or '-') ~ ' / ' ~ (m.from_recovery_category or '-') }}</td>
+                                    <td>{{ (m.to_tar_type or '-') ~ ' / ' ~ (m.to_recovery_category or '-') }}</td>
+                                    <td>{{ m.pending_total_snapshot|num0 }}</td>
+                                </tr>
+                            {% endfor %}
+                        </table>
+                        {% if not recent_movements %}
+                            <div class="empty-state">No movements recorded yet for your user.</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {# Security audit removed from UI as requested #}
+            </div>
+        </section>
+    </div>
+</div>
+</body>
+</html>

@@ -1,6 +1,11 @@
+.venv/
 venv/
 __pycache__/
 *.pyc
 *.db
-migrations/
+*.sqlite
+*.sqlite3
+instance/
+persistent_state.json
+repomix-output.md
 .env

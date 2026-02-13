@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin User Mapping</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <h2>Admin User & Mapping Console</h2>
+            <p class="subtitle">Create users and assign mapped cases by TAR, Range, and Recovery Category.</p>
+        </section>
+
+        <div class="nav">
+            <a href="/profile">Profile</a>
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/notebook">Notebook</a>
+            <a href="/movement-ledger">Movement Ledger</a>
+            <a href="/admin/forgot-key">Forgot Key Admin</a>
+        </div>
+
+        <section class="dashboard-wrap">
+            {% if error %}
+                <div class="error">{{ error }}</div>
+            {% endif %}
+            {% if success %}
+                <div class="success">{{ success }}</div>
+            {% endif %}
+
+            <div class="split-block">
+                <h3>Create User</h3>
+                <form method="POST" class="bar">
+                    <input type="hidden" name="action" value="create_user">
+                    <input type="text" name="name" placeholder="Full Name" required>
+                    <input type="text" name="username" placeholder="Username (optional; auto if blank)">
+                    <input type="text" name="password" placeholder="Initial Password" required>
+                    <select name="role">
+                        <option value="RO">RO</option>
+                        <option value="ADMIN">ADMIN</option>
+                    </select>
+                    <button type="submit">Create</button>
+                </form>
+            </div>
+
+            <div class="split-block">
+                <h3>Assign Mapping</h3>
+                <form method="POST" class="bar">
+                    <input type="hidden" name="action" value="assign_mapping">
+                    <select name="username" required>
+                        <option value="">Select User</option>
+                        {% for u in users %}
+                            <option value="{{ u.username }}">{{ u.username }} ({{ u.name }})</option>
+                        {% endfor %}
+                    </select>
+                    <select name="tar_type">
+                        <option value="">All TAR</option>
+                        <option value="TAR-1">TAR-1</option>
+                        <option value="TAR-2">TAR-2</option>
+                        <option value="TAR-3">TAR-3</option>
+                    </select>
+                    <select name="range_code">
+                        <option value="">All Ranges</option>
+                        {% for r in ['AWD5','BWD5','CWD5','DWD5','EWD5'] %}
+                            <option value="{{ r }}">{{ r }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="recovery_category">
+                        <option value="">All Categories</option>
+                        {% for option in category_options %}
+                            <option value="{{ option.code }}">{{ option.label }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit">Assign Matching Cases</button>
+                </form>
+            </div>
+
+            <div class="split-block">
+                <h3>Delete User Account</h3>
+                <p class="subtitle">Deletes login account only. Existing audit trail entries remain preserved.</p>
+                <form method="POST" class="bar">
+                    <input type="hidden" name="action" value="delete_user">
+                    <select name="username" required>
+                        <option value="">Select User to Delete</option>
+                        {% for u in users %}
+                            <option value="{{ u.username }}">{{ u.username }} ({{ u.name }})</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit">Delete Account</button>
+                </form>
+            </div>
+
+            <div class="split-block">
+                <h3>Unmap Selected Mappings</h3>
+                <p class="subtitle">Remove mapping links for a user using TAR/Range/Category filters.</p>
+                <form method="POST" class="bar">
+                    <input type="hidden" name="action" value="unmap_filtered">
+                    <select name="username" required>
+                        <option value="">Select User</option>
+                        {% for u in users %}
+                            <option value="{{ u.username }}">{{ u.username }} ({{ u.name }})</option>
+                        {% endfor %}
+                    </select>
+                    <select name="tar_type">
+                        <option value="">All TAR</option>
+                        <option value="TAR-1">TAR-1</option>
+                        <option value="TAR-2">TAR-2</option>
+                        <option value="TAR-3">TAR-3</option>
+                    </select>
+                    <select name="range_code">
+                        <option value="">All Ranges</option>
+                        {% for r in ['AWD5','BWD5','CWD5','DWD5','EWD5'] %}
+                            <option value="{{ r }}">{{ r }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="recovery_category">
+                        <option value="">All Categories</option>
+                        {% for option in category_options %}
+                            <option value="{{ option.code }}">{{ option.label }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit">Unmap Selected</button>
+                </form>
+            </div>
+
+            <div class="split-block">
+                <h3>Clear All Mappings for User</h3>
+                <p class="subtitle">Removes every case-user mapping for selected user.</p>
+                <form method="POST" class="bar">
+                    <input type="hidden" name="action" value="unmap_all_user">
+                    <select name="username" required>
+                        <option value="">Select User</option>
+                        {% for u in users %}
+                            <option value="{{ u.username }}">{{ u.username }} ({{ u.name }})</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit">Clear All Mappings</button>
+                </form>
+            </div>
+
+            <div class="split-block">
+                <h3>Recent Mapping Rules</h3>
+                <div class="table-container split-table">
+                    <table>
+                        <tr>
+                            <th>Time</th>
+                            <th>User ID</th>
+                            <th>Assigned By</th>
+                            <th>TAR</th>
+                            <th>Range</th>
+                            <th>Category</th>
+                            <th>Matched Cases</th>
+                        </tr>
+                        {% for r in mapping_rules %}
+                            <tr>
+                                <td>{{ r.created_at|ist_datetime }}</td>
+                                <td>{{ r.user_id }}</td>
+                                <td>{{ r.assigned_by }}</td>
+                                <td>{{ r.tar_type or 'ALL' }}</td>
+                                <td>{{ r.range_code or 'ALL' }}</td>
+                                <td>{{ r.recovery_category or 'ALL' }}</td>
+                                <td>{{ r.matched_case_count }}</td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                    {% if not mapping_rules %}
+                        <div class="empty-state">No mapping rules logged yet.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+</body>
+</html>

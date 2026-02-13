@@ -18,6 +18,7 @@
                 <div class="logo-chip">
                     <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
                     <div>Logged in as: <b>{{ officer }}</b></div>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
                 </div>
                 <a href="/logout">Logout</a>
             </div>
@@ -25,6 +26,14 @@
             <p class="subtitle">Consolidated TAR-wise view of mapped cases and financial exposure.</p>
             <p class="motto">Desh Sevarth Kar Sanchay</p>
         </section>
+
+        <div class="nav">
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/tar-report-archives">Archives</a>
+            <a href="/notebook">Notebook</a>
+            <a href="/movement-ledger">Movement Ledger</a>
+            <a href="/disposed-cases">Disposed Cases</a>
+        </div>
 
         <section class="dashboard-wrap">
             {% if request.args.get("msg") == "seeded" %}
@@ -47,10 +56,6 @@
                         <div class="metric-line">
                             <span>Mapped Case Count</span>
                             <strong>{{ row.case_count }}</strong>
-                        </div>
-                        <div class="metric-line">
-                            <span>Total OIO (₹ Lakhs)</span>
-                            <strong>₹ {{ "{:,.2f}".format(row.total_oio_lakhs) }}</strong>
                         </div>
                         <div class="metric-line">
                             <span>Pending Total (₹ Lakhs)</span>
@@ -86,6 +91,26 @@
                     {% if not category_split %}
                         <div class="empty-state">No mapped case categories available for this user.</div>
                     {% endif %}
+                </div>
+            </div>
+
+            <div class="split-block">
+                <h3>Final Totals by TAR</h3>
+                <div class="table-container split-table">
+                    <table>
+                        <tr>
+                            <th>TAR</th>
+                            <th>Final Count</th>
+                            <th>Final Pending OIO Sum (₹ Lakhs)</th>
+                        </tr>
+                        {% for row in tar_finals %}
+                            <tr>
+                                <td>{{ row.tar_type }}</td>
+                                <td>{{ row.final_count }}</td>
+                                <td>₹ {{ "{:,.2f}".format(row.final_pending_oio_lakhs) }}</td>
+                            </tr>
+                        {% endfor %}
+                    </table>
                 </div>
             </div>
         </section>

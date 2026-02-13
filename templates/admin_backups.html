@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Backups</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>Admin Backups | <b>{{ officer }}</b></div>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>Backups & Restore</h2>
+            <p class="subtitle">Backup includes SQLite DB + persistent state file. Restore will require server restart.</p>
+        </section>
+
+        <div class="nav">
+            <a href="/profile">Profile</a>
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/admin/report-finalisation">Report Finalisation</a>
+            <a href="/admin/mapping">Admin Mapping</a>
+        </div>
+
+        <section class="dashboard-wrap">
+            {% if error %}
+                <div class="error">{{ error }}</div>
+            {% endif %}
+            {% if success %}
+                <div class="success">{{ success }}</div>
+            {% endif %}
+
+            <div class="split-block">
+                <h3>Create Backup</h3>
+                <form method="POST" class="bar">
+                    <input type="hidden" name="action" value="create">
+                    <input type="text" name="name" placeholder="Backup name (e.g. Backup-2)" required>
+                    <input type="text" name="reason" placeholder="Reason (optional)" style="min-width: 260px;">
+                    <button type="submit">Create</button>
+                </form>
+                <p class="subtitle">Existing: <b>Backup-1</b> is already saved.</p>
+            </div>
+
+            <div class="split-block">
+                <h3>Restore Backup (Danger)</h3>
+                <p class="subtitle">
+                    Restore overwrites current DB/state with the selected backup. You should restart the server after restore.
+                    Optional: clear all audit/report/movement trails to start from Day-0 on restored seed.
+                </p>
+                <form method="POST" class="bar">
+                    <input type="hidden" name="action" value="restore">
+                    <select name="name" required>
+                        <option value="">Select backup</option>
+                        {% for b in backups %}
+                            <option value="{{ b.name }}">{{ b.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <label style="display:flex; gap:8px; align-items:center;">
+                        <input type="checkbox" name="clear_trails" value="1">
+                        Clear audit/report trails (Day-0)
+                    </label>
+                    <button type="submit">Restore</button>
+                </form>
+            </div>
+
+            <div class="split-block">
+                <h3>Available Backups</h3>
+                <div class="table-container split-table">
+                    <table style="min-width: 920px;">
+                        <tr>
+                            <th>Name</th>
+                            <th>Created At (IST)</th>
+                            <th>Created By</th>
+                            <th>Reason</th>
+                        </tr>
+                        {% for b in backups %}
+                            <tr>
+                                <td><b>{{ b.name }}</b></td>
+                                <td>{{ b.created_at_ist }}</td>
+                                <td>{{ b.created_by }}</td>
+                                <td>{{ b.reason }}</td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                    {% if not backups %}
+                        <div class="empty-state">No backups found in instance/backups.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+</body>
+</html>
+

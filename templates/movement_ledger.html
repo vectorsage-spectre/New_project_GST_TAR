@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Case Movement Ledger</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>Movement Ledger | <b>{{ officer }}</b></div>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>Case Movement Ledger</h2>
+            <p class="subtitle">Records every movement from one list (TAR/Category) to another, including system auto-moves.</p>
+        </section>
+
+        <div class="nav">
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/notebook">Notebook</a>
+            <a href="/movement-ledger">Movement Ledger</a>
+        </div>
+
+        <section class="controls">
+            <form method="get" class="bar">
+                <b>Filter</b>
+                <select name="direction">
+                    <option value="" {% if not request.args.get('direction') %}selected{% endif %}>All</option>
+                    <option value="in" {% if request.args.get('direction')=='in' %}selected{% endif %}>Added To (IN)</option>
+                    <option value="out" {% if request.args.get('direction')=='out' %}selected{% endif %}>Disposed From (OUT)</option>
+                </select>
+
+                <select name="tar_type">
+                    <option value="">All TAR</option>
+                    <option value="TAR-1" {% if request.args.get('tar_type')=='TAR-1' %}selected{% endif %}>TAR-1</option>
+                    <option value="TAR-2" {% if request.args.get('tar_type')=='TAR-2' %}selected{% endif %}>TAR-2</option>
+                    <option value="TAR-3" {% if request.args.get('tar_type')=='TAR-3' %}selected{% endif %}>TAR-3</option>
+                </select>
+
+                <select name="cat">
+                    <option value="">All Categories</option>
+                    {% for option in category_options %}
+                        <option value="{{ option.code }}" {% if request.args.get('cat')==option.code %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+
+                <input type="date" name="from" value="{{ request.args.get('from','') }}" title="From date (YYYY-MM-DD)">
+                <input type="date" name="to" value="{{ request.args.get('to','') }}" title="To date (YYYY-MM-DD)">
+
+                <button type="submit">Apply</button>
+                <a class="metric-link" href="/movement-ledger">Clear</a>
+            </form>
+
+            <div class="bar">
+                <span class="badge">IN: {{ summary.in_count }} cases | Pending ₹ {{ "{:,.2f}".format(summary.in_pending_lakhs) }} Lakhs</span>
+                <span class="badge">OUT: {{ summary.out_count }} cases | Pending ₹ {{ "{:,.2f}".format(summary.out_pending_lakhs) }} Lakhs</span>
+            </div>
+        </section>
+
+        <section class="table-wrap">
+            <div class="table-container split-table">
+                <table style="min-width: 1100px;">
+                    <tr>
+                        <th>Time (IST)</th>
+                        <th>Case</th>
+                        <th>Actor</th>
+                        <th>Source</th>
+                        <th>From (TAR/Category)</th>
+                        <th>To (TAR/Category)</th>
+                        <th>Reason</th>
+                        <th>Pending Snapshot (₹)</th>
+                        <th>Note</th>
+                    </tr>
+                    {% for m in movements %}
+                        <tr>
+                            <td>{{ m.moved_at|ist_datetime }}</td>
+                            <td><a href="/case/{{ m.case_id }}">{{ m.case_id }}</a></td>
+                            <td>{{ m.moved_by }}</td>
+                            <td>{{ m.source }}</td>
+                            <td>{{ (m.from_tar_type or '-') ~ ' / ' ~ (m.from_recovery_category or '-') }}</td>
+                            <td>{{ (m.to_tar_type or '-') ~ ' / ' ~ (m.to_recovery_category or '-') }}</td>
+                            <td>{{ m.reason_text or m.reason_code or '' }}</td>
+                            <td>{{ m.pending_total_snapshot|num0 }}</td>
+                            <td>{{ m.note or '' }}</td>
+                        </tr>
+                    {% endfor %}
+                </table>
+                {% if not movements %}
+                    <div class="empty-state">No movements match the selected filters.</div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+</body>
+</html>
