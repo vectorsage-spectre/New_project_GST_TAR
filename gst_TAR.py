@@ -1125,6 +1125,40 @@ def restore_state_snapshot():
     db.session.commit()
 
 
+def bootstrap_admin_if_needed():
+    # Render deployments typically start with an empty Postgres DB.
+    # This creates the first ADMIN user from env vars one time.
+    try:
+        if User.query.count() > 0:
+            return
+    except Exception:
+        return
+
+    pwd = (os.environ.get("BOOTSTRAP_ADMIN_PASSWORD") or "").strip()
+    if not pwd:
+        return
+
+    username = (os.environ.get("BOOTSTRAP_ADMIN_USERNAME") or "admin").strip().lower()
+    name = (os.environ.get("BOOTSTRAP_ADMIN_NAME") or "Admin").strip()
+    if len(pwd) < 6:
+        return
+
+    u = User(username=username, name=name, role="ADMIN")
+    u.set_password(pwd)
+    db.session.add(u)
+    db.session.flush()
+
+    pin = (os.environ.get("BOOTSTRAP_ADMIN_RECOVERY_PIN") or "").strip()
+    if pin and len(pin) >= 4:
+        db.session.add(
+            UserRecoverySecret(
+                user_id=u.id,
+                recovery_pin_hash=generate_password_hash(pin),
+            )
+        )
+    db.session.commit()
+
+
 @app.before_request
 def restore_state_once():
     global STATE_BOOTSTRAP_DONE
@@ -1134,6 +1168,7 @@ def restore_state_once():
         ensure_sqlite_columns()
         ensure_legacy_assignments_migrated()
         restore_state_snapshot()
+        bootstrap_admin_if_needed()
         STATE_BOOTSTRAP_DONE = True
     except Exception:
         db.session.rollback()
