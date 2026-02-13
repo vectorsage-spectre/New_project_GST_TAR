@@ -5,3 +5,5 @@ Werkzeug
 pandas
 openpyxl
 fpdf2
+gunicorn
+psycopg2-binary

@@ -247,7 +247,7 @@ import shutil
 
 # ---------------- APP SETUP ----------------
 app = Flask(__name__)
-app.secret_key = "tar_secret_key"
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "tar_secret_key")
 app.permanent_session_lifetime = timedelta(hours=8)
 IST_OFFSET = timedelta(hours=5, minutes=30)
 
@@ -275,7 +275,16 @@ def num0(value):
         return 0.0
 
 # ---------------- DATABASE CONFIG ----------------
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///gst_tar.db'
+# Render: set DATABASE_URL (usually Postgres). If absent, fallback to local SQLite in instance/.
+db_url = os.environ.get("DATABASE_URL", "").strip()
+if db_url.startswith("postgres://"):
+    # SQLAlchemy expects postgresql://
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+if db_url:
+    app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+else:
+    os.makedirs(app.instance_path, exist_ok=True)
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(app.instance_path, 'gst_tar.db')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
@@ -846,6 +855,8 @@ def backup_path(name):
 
 
 def create_backup(name, created_by, reason=""):
+    if not str(app.config.get("SQLALCHEMY_DATABASE_URI", "")).startswith("sqlite"):
+        raise ValueError("Backups are supported only for SQLite deployments.")
     safe = sanitize_backup_name(name)
     if not safe:
         raise ValueError("Invalid backup name.")
@@ -874,6 +885,8 @@ def create_backup(name, created_by, reason=""):
 
 
 def restore_backup(name):
+    if not str(app.config.get("SQLALCHEMY_DATABASE_URI", "")).startswith("sqlite"):
+        raise ValueError("Restore is supported only for SQLite deployments.")
     safe = sanitize_backup_name(name)
     if not safe:
         raise ValueError("Invalid backup name.")
