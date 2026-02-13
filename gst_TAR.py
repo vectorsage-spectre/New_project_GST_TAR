@@ -1128,9 +1128,12 @@ def restore_state_snapshot():
 def bootstrap_admin_if_needed():
     # Render deployments typically start with an empty Postgres DB.
     # This creates the first ADMIN user from env vars one time.
+    global STATE_BOOTSTRAP_DONE
+    if getattr(bootstrap_admin_if_needed, "_done", False):
+        return
+
     try:
-        if User.query.count() > 0:
-            return
+        user_count = User.query.count()
     except Exception:
         return
 
@@ -1140,23 +1143,45 @@ def bootstrap_admin_if_needed():
 
     username = (os.environ.get("BOOTSTRAP_ADMIN_USERNAME") or "admin").strip().lower()
     name = (os.environ.get("BOOTSTRAP_ADMIN_NAME") or "Admin").strip()
+    force_reset = (os.environ.get("BOOTSTRAP_ADMIN_FORCE_RESET") or "").strip() in ("1", "true", "TRUE", "yes", "YES")
     if len(pwd) < 6:
         return
 
-    u = User(username=username, name=name, role="ADMIN")
-    u.set_password(pwd)
-    db.session.add(u)
-    db.session.flush()
+    # If DB already has users, bootstrap won't run unless force reset is enabled.
+    if user_count > 0 and not force_reset:
+        bootstrap_admin_if_needed._done = True
+        return
+
+    existing = User.query.filter_by(username=username).first()
+    if existing:
+        if not force_reset:
+            bootstrap_admin_if_needed._done = True
+            return
+        existing.name = existing.name or name
+        existing.role = "ADMIN"
+        existing.set_password(pwd)
+        u = existing
+    else:
+        u = User(username=username, name=name, role="ADMIN")
+        u.set_password(pwd)
+        db.session.add(u)
+        db.session.flush()
 
     pin = (os.environ.get("BOOTSTRAP_ADMIN_RECOVERY_PIN") or "").strip()
     if pin and len(pin) >= 4:
-        db.session.add(
-            UserRecoverySecret(
-                user_id=u.id,
-                recovery_pin_hash=generate_password_hash(pin),
+        secret = UserRecoverySecret.query.filter_by(user_id=u.id).first()
+        if not secret:
+            db.session.add(
+                UserRecoverySecret(
+                    user_id=u.id,
+                    recovery_pin_hash=generate_password_hash(pin),
+                )
             )
-        )
+        else:
+            secret.recovery_pin_hash = generate_password_hash(pin)
     db.session.commit()
+    print(f"BOOTSTRAP_ADMIN: ensured admin user '{username}' (force_reset={force_reset}, user_count={user_count})")
+    bootstrap_admin_if_needed._done = True
 
 
 @app.before_request
