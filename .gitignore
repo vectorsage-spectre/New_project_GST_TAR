@@ -9,3 +9,4 @@ instance/
 persistent_state.json
 repomix-output.md
 .env
+.DS_Store
