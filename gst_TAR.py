@@ -1503,6 +1503,17 @@ def seed_month_snapshot():
     if not is_valid_month_key(snapshot_month):
         return redirect("/tar-report-dashboard?msg=invalid_month")
 
+    confirm_text = (request.form.get("confirm_text") or "").strip().upper()
+    admin_username = (request.form.get("admin_username") or "").strip().lower()
+    admin_password = request.form.get("admin_password") or ""
+
+    if confirm_text != "CONFIRM":
+        return redirect("/tar-report-dashboard?msg=confirm_required")
+
+    admin_user = User.query.filter_by(username=admin_username, role="ADMIN").first()
+    if not admin_user or not admin_user.check_password(admin_password):
+        return redirect("/tar-report-dashboard?msg=invalid_admin_auth")
+
     saved_rows = save_monthly_snapshot(user, snapshot_month)
     return redirect(
         f"/tar-report-dashboard?msg=seeded&snapshot_month={snapshot_month}&rows={saved_rows}"

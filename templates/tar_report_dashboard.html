@@ -40,11 +40,18 @@
                 <div class="success">Snapshot saved for {{ request.args.get("snapshot_month") }} with {{ request.args.get("rows") }} category rows.</div>
             {% elif request.args.get("msg") == "invalid_month" %}
                 <div class="error">Invalid month format. Use YYYY-MM.</div>
+            {% elif request.args.get("msg") == "confirm_required" %}
+                <div class="error">Type CONFIRM and provide valid admin credentials to save snapshot.</div>
+            {% elif request.args.get("msg") == "invalid_admin_auth" %}
+                <div class="error">Admin authentication failed. Snapshot not saved.</div>
             {% endif %}
 
-            <form method="post" action="/tar-report-dashboard/seed-month" class="bar">
+            <form method="post" action="/tar-report-dashboard/seed-month" class="bar" onsubmit="return confirm('Are you sure you want to save this month snapshot?');">
                 <b>Seed Base/Month Snapshot</b>
                 <input type="month" name="snapshot_month" value="{{ default_base_month }}" required>
+                <input type="text" name="confirm_text" placeholder='Type "CONFIRM"' required>
+                <input type="text" name="admin_username" placeholder="Admin Username" required>
+                <input type="password" name="admin_password" placeholder="Admin Password" required>
                 <button type="submit">Save Snapshot</button>
             </form>
 
