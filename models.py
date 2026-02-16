@@ -18,7 +18,7 @@ class Case(db.Model):
     party_name = db.Column(db.Text)
 
     gstin_raw = db.Column(db.Text)
-    gstin_verified = db.Column(db.String(10))
+    gstin_verified = db.Column(db.String(30))
 
     oio_display = db.Column(db.Text)
     oio_number = db.Column(db.String(100))

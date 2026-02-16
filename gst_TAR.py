@@ -249,7 +249,7 @@ from models import (
     DisposedCase,
 )
 from flask_migrate import Migrate
-from sqlalchemy import func, case as sql_case
+from sqlalchemy import func, case as sql_case, text
 from io import BytesIO
 from fpdf import FPDF
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -967,6 +967,23 @@ def ensure_sqlite_columns():
             pass
 
 
+def ensure_postgres_column_sizes():
+    # Runtime compatibility fix for already-deployed Postgres schemas.
+    uri = str(app.config.get("SQLALCHEMY_DATABASE_URI", "")).lower()
+    if not uri.startswith("postgresql"):
+        return
+    try:
+        with db.engine.begin() as conn:
+            conn.execute(
+                text('ALTER TABLE "case" ALTER COLUMN gstin_verified TYPE VARCHAR(30)')
+            )
+    except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+
 def log_case_movement(
     case_obj,
     moved_by,
@@ -1211,6 +1228,7 @@ def restore_state_once():
         return
     try:
         ensure_sqlite_columns()
+        ensure_postgres_column_sizes()
         ensure_legacy_assignments_migrated()
         restore_state_snapshot()
         bootstrap_admin_if_needed()
