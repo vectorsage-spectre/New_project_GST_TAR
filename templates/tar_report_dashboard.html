@@ -44,6 +44,8 @@
                 <div class="error">Type CONFIRM and provide valid admin credentials to save snapshot.</div>
             {% elif request.args.get("msg") == "invalid_admin_auth" %}
                 <div class="error">Admin authentication failed. Snapshot not saved.</div>
+            {% elif request.args.get("msg") == "snapshot_exists" %}
+                <div class="error">Snapshot for {{ request.args.get("snapshot_month") }} already exists. Enable replace to overwrite it.</div>
             {% endif %}
 
             <p class="subtitle"><b>Legend:</b> All amounts are shown in <b>₹ Lakhs</b> and rounded to 2 decimals.</p>
@@ -121,6 +123,10 @@
                     <input type="text" name="confirm_text" placeholder='Type "CONFIRM"' required autocomplete="off">
                     <input type="text" name="admin_username" placeholder="Admin Username" required autocomplete="off">
                     <input type="password" name="admin_password" placeholder="Admin Password" required autocomplete="off">
+                    <label class="inline-check">
+                        <input type="checkbox" name="overwrite_existing" value="1">
+                        Replace existing month snapshot
+                    </label>
                     <button type="submit">Save Snapshot</button>
                 </form>
             </div>

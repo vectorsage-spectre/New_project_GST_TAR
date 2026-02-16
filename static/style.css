@@ -387,6 +387,14 @@ button:hover {
     border-color: #e1cf9e;
 }
 
+.inline-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
 .table-container {
     max-height: 560px;
     overflow: auto;

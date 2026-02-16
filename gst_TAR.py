@@ -330,7 +330,13 @@ def seed(key):
         return "Not Allowed ❌"
     try:
         seed_master_excel("master_seed.xlsx")
-        return "Seeding Done ✅"
+        replayed = apply_saved_mapping_rules()
+        if (request.args.get("reset_reports") or "").strip() == "1":
+            MonthlyCategorySnapshot.query.delete()
+            MonthlyReportFinalisation.query.delete()
+            db.session.commit()
+            return f"Seeding Done ✅ | Reapplied mappings: {replayed} | Cleared report snapshots/finalisation."
+        return f"Seeding Done ✅ | Reapplied mappings: {replayed}"
     except Exception as e:
         db.session.rollback()
         return f"Seeding failed ❌: {str(e)}", 500
@@ -783,8 +789,18 @@ def aggregate_category_metrics(user_id, tar_type=None):
     return metrics
 
 
-def save_monthly_snapshot(user, snapshot_month):
+def save_monthly_snapshot(user, snapshot_month, overwrite=False):
     metrics = aggregate_category_metrics(user.id)
+    existing_count = (
+        MonthlyCategorySnapshot.query
+        .filter_by(
+            assigned_to=user.name,
+            snapshot_month=snapshot_month
+        )
+        .count()
+    )
+    if existing_count > 0 and not overwrite:
+        return 0, False
 
     MonthlyCategorySnapshot.query.filter_by(
         assigned_to=user.name,
@@ -805,7 +821,7 @@ def save_monthly_snapshot(user, snapshot_month):
         )
 
     db.session.commit()
-    return len(metrics)
+    return len(metrics), True
 
 
 def get_session_user():
@@ -1515,7 +1531,10 @@ def seed_month_snapshot():
     if not admin_user or not admin_user.check_password(admin_password):
         return redirect("/tar-report-dashboard?msg=invalid_admin_auth")
 
-    saved_rows = save_monthly_snapshot(user, snapshot_month)
+    overwrite_existing = (request.form.get("overwrite_existing") or "").strip() == "1"
+    saved_rows, saved = save_monthly_snapshot(user, snapshot_month, overwrite=overwrite_existing)
+    if not saved:
+        return redirect(f"/tar-report-dashboard?msg=snapshot_exists&snapshot_month={snapshot_month}")
     return redirect(
         f"/tar-report-dashboard?msg=seeded&snapshot_month={snapshot_month}&rows={saved_rows}"
     )
@@ -1921,16 +1940,6 @@ def tar_report_archives():
     user = db.session.get(User, session.get("user_id"))
     if not user:
         return redirect("/login")
-
-    # Keep January as baseline month using current mapped values if missing.
-    january_month = "2026-01"
-    january_exists = (
-        MonthlyCategorySnapshot.query
-        .filter_by(assigned_to=user.name, snapshot_month=january_month)
-        .first()
-    )
-    if not january_exists:
-        save_monthly_snapshot(user, january_month)
 
     month_summaries = build_archive_month_summary(user.name)
     return render_template(
