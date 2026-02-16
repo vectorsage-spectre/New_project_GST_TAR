@@ -1485,6 +1485,7 @@ def tar_report_dashboard():
     return render_template(
         "tar_report_dashboard.html",
         officer=user.name,
+        user_role=user.role,
         tar_summaries=tar_summaries,
         category_split=category_split,
         tar_finals=tar_finals,

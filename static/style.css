@@ -372,6 +372,21 @@ button:hover {
     margin: 0 0 10px;
 }
 
+.admin-snapshot-zone {
+    margin-top: 22px;
+    border-color: #d8c28b;
+    background: linear-gradient(180deg, #fffaf0 0%, #fffdf8 100%);
+}
+
+.admin-snapshot-zone h3 {
+    color: #6b4b06;
+}
+
+.admin-snapshot-zone .bar {
+    background: #fffef9;
+    border-color: #e1cf9e;
+}
+
 .table-container {
     max-height: 560px;
     overflow: auto;

@@ -46,15 +46,6 @@
                 <div class="error">Admin authentication failed. Snapshot not saved.</div>
             {% endif %}
 
-            <form method="post" action="/tar-report-dashboard/seed-month" class="bar" onsubmit="return confirm('Are you sure you want to save this month snapshot?');">
-                <b>Seed Base/Month Snapshot</b>
-                <input type="month" name="snapshot_month" value="{{ default_base_month }}" required>
-                <input type="text" name="confirm_text" placeholder='Type "CONFIRM"' required>
-                <input type="text" name="admin_username" placeholder="Admin Username" required>
-                <input type="password" name="admin_password" placeholder="Admin Password" required>
-                <button type="submit">Save Snapshot</button>
-            </form>
-
             <p class="subtitle"><b>Legend:</b> All amounts are shown in <b>₹ Lakhs</b> and rounded to 2 decimals.</p>
             <div class="dashboard-grid">
                 {% for row in tar_summaries %}
@@ -120,6 +111,20 @@
                     </table>
                 </div>
             </div>
+
+            {% if user_role == "ADMIN" %}
+            <div class="split-block admin-snapshot-zone">
+                <h3>Admin Snapshot Control</h3>
+                <p class="subtitle">Sensitive action: this saves the monthly baseline. Use only after verification.</p>
+                <form method="post" action="/tar-report-dashboard/seed-month" class="bar" onsubmit="return confirm('Are you sure you want to save this month snapshot?');">
+                    <input type="month" name="snapshot_month" value="{{ default_base_month }}" required>
+                    <input type="text" name="confirm_text" placeholder='Type "CONFIRM"' required autocomplete="off">
+                    <input type="text" name="admin_username" placeholder="Admin Username" required autocomplete="off">
+                    <input type="password" name="admin_password" placeholder="Admin Password" required autocomplete="off">
+                    <button type="submit">Save Snapshot</button>
+                </form>
+            </div>
+            {% endif %}
         </section>
     </div>
 </div>
