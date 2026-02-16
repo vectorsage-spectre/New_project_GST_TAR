@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Case Update Centre</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <span>Case Management | {{ officer }}</span>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
+                </div>
+                <div>
+                    <a href="/tar-report-dashboard">Dashboard</a> |
+                    <a href="{{ request.args.get('from_page', '/live/TAR-3') }}">Back to list</a>
+                </div>
+            </div>
+            <h2>Case Update Centre</h2>
+            <p class="subtitle">Edit case fields and maintain full audit accountability for every change.</p>
+            <p class="motto">Desh Sevarth Kar Sanchay</p>
+        </section>
+
+        <form method="POST">
+            {% if error %}
+                <div class="error">{{ error }}</div>
+            {% endif %}
+            <section class="form-grid">
+                {% for field, label in labels.items() %}
+                    <div class="field {% if field == 'comments' %}field-wide{% endif %}">
+                        <label>{{ label }}</label>
+                        {% if field == "recovery_category" %}
+                            <select name="{{ field }}" id="recovery-category" data-original="{{ (case|attr(field) or '') }}">
+                                <option value="">Select Category</option>
+                                {% for option in category_options %}
+                                    <option value="{{ option.code }}" {% if (form_values and form_values.get(field) == option.code) or ((not form_values) and (case|attr(field) or '') == option.code) %}selected{% endif %}>
+                                        {{ option.label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div id="reason-block" style="display:none; margin-top:10px;">
+                                <label style="color: var(--muted); font-size: 12px; font-weight: 700;">Reason for change (mandatory)</label>
+                                <select name="movement_reason" id="movement-reason" disabled>
+                                    <option value="">Select Reason</option>
+                                    {% for r in movement_reasons %}
+                                        <option value="{{ r.code }}" {% if form_values and form_values.get('movement_reason') == r.code %}selected{% endif %}>{{ r.label }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="subtitle">This will be appended to Remarks and recorded in the movement ledger.</small>
+                            </div>
+                        {% elif field == "oio_date" %}
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <input
+                                    type="text"
+                                    name="oio_date"
+                                    id="oio-date-text-edit"
+                                    placeholder="DD/MM/YYYY"
+                                    value="{{ form_values.get('oio_date', '') if form_values else (case.oio_date or '') }}"
+                                    maxlength="10"
+                                    inputmode="numeric"
+                                    title="Use DD/MM/YYYY"
+                                    style="flex:1;"
+                                >
+                                <input type="date" id="oio-date-picker-edit" style="max-width:170px;">
+                            </div>
+                            <small class="subtitle">Format: DD/MM/YYYY (optional).</small>
+                        {% elif field == "comments" %}
+                            <textarea
+                                name="{{ field }}"
+                                rows="6"
+                            >{{ form_values.get(field, '') if form_values else (case|attr(field) or '') }}</textarea>
+                        {% elif field in ["pending_gst","pending_interest","pending_penalty","pending_total","total_oio","total_realised"] %}
+                            <input
+                                type="text"
+                                name="{{ field }}"
+                                value="{{ form_values.get(field, '') if form_values else ((case|attr(field)) if (case|attr(field)) is not none else 0.0) }}"
+                                readonly
+                            >
+                        {% elif field in ["tax_oio","interest_oio","penalty_oio","gst_realised","interest_realised","penalty_realised","pending_gst","pending_interest","pending_penalty","pending_total","total_oio","total_realised"] %}
+                            <input
+                                type="text"
+                                name="{{ field }}"
+                                value="{{ form_values.get(field, '') if form_values else ((case|attr(field)) if (case|attr(field)) is not none else 0.0) }}"
+                            >
+                        {% else %}
+                            <input
+                                type="text"
+                                name="{{ field }}"
+                                value="{{ form_values.get(field, '') if form_values else (case|attr(field) or '') }}"
+                            >
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </section>
+
+            <div class="actions">
+                <button type="submit">Save Changes</button>
+            </div>
+        </form>
+
+        <h3 class="audit-title">Change History (Audit Trail)</h3>
+        <section class="table-wrap">
+            <div class="table-container">
+                <table>
+                    <tr>
+                        <th>Time (IST)</th>
+                        <th>Officer</th>
+                        <th>Field</th>
+                        <th>Old Value</th>
+                        <th>New Value</th>
+                    </tr>
+                    {% for c in changes %}
+                        <tr>
+                            <td>{{ c.timestamp|ist_datetime }}</td>
+                            <td>{{ c.changed_by }}</td>
+                            <td>{{ labels.get(c.field_changed, c.field_changed) }}</td>
+                            <td>{{ c.old_value }}</td>
+                            <td>{{ c.new_value }}</td>
+                        </tr>
+                    {% endfor %}
+                </table>
+                {% if not changes %}
+                    <div class="empty-state">No audit events yet for this case.</div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+<script>
+const oioDateTextEdit = document.getElementById("oio-date-text-edit");
+const oioDatePickerEdit = document.getElementById("oio-date-picker-edit");
+
+function ddmmyyyyToIso(v) {
+    const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(v || "");
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+}
+function isoToDdmmyyyy(v) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || "");
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
+}
+
+if (oioDateTextEdit && oioDatePickerEdit) {
+    oioDatePickerEdit.value = ddmmyyyyToIso(oioDateTextEdit.value.trim());
+    oioDatePickerEdit.addEventListener("change", function () {
+        if (this.value) {
+            oioDateTextEdit.value = isoToDdmmyyyy(this.value);
+        }
+    });
+    oioDateTextEdit.addEventListener("change", function () {
+        const iso = ddmmyyyyToIso(this.value.trim());
+        oioDatePickerEdit.value = iso;
+    });
+}
+
+// Show "Reason for change" only if category is changed.
+const catSel = document.getElementById("recovery-category");
+const reasonBlock = document.getElementById("reason-block");
+const reasonSel = document.getElementById("movement-reason");
+
+function syncReasonVisibility() {
+    if (!catSel || !reasonBlock || !reasonSel) return;
+    const original = (catSel.getAttribute("data-original") || "").trim();
+    const current = (catSel.value || "").trim();
+    const changed = !!current && current !== original;
+
+    reasonBlock.style.display = changed ? "block" : "none";
+    reasonSel.disabled = !changed;
+    reasonSel.required = changed;
+    if (!changed) {
+        reasonSel.value = "";
+    }
+}
+
+if (catSel) {
+    catSel.addEventListener("change", syncReasonVisibility);
+    syncReasonVisibility();
+}
+</script>
+</body>
+</html>

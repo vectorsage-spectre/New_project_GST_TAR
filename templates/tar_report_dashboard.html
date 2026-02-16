@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAR Report Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>Logged in as: <b>{{ officer }}</b></div>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>TAR Report Dashboard</h2>
+            <p class="subtitle">Consolidated TAR-wise view of mapped cases and financial exposure.</p>
+            <p class="motto">Desh Sevarth Kar Sanchay</p>
+        </section>
+
+        <div class="nav">
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/tar-report-archives">Archives</a>
+            <a href="/notebook">Notebook</a>
+            <a href="/movement-ledger">Movement Ledger</a>
+            <a href="/disposed-cases">Disposed Cases</a>
+        </div>
+
+        <section class="dashboard-wrap">
+            {% if request.args.get("msg") == "seeded" %}
+                <div class="success">Snapshot saved for {{ request.args.get("snapshot_month") }} with {{ request.args.get("rows") }} category rows.</div>
+            {% elif request.args.get("msg") == "invalid_month" %}
+                <div class="error">Invalid month format. Use YYYY-MM.</div>
+            {% endif %}
+
+            <form method="post" action="/tar-report-dashboard/seed-month" class="bar">
+                <b>Seed Base/Month Snapshot</b>
+                <input type="month" name="snapshot_month" value="{{ default_base_month }}" required>
+                <button type="submit">Save Snapshot</button>
+            </form>
+
+            <p class="subtitle"><b>Legend:</b> All amounts are shown in <b>₹ Lakhs</b> and rounded to 2 decimals.</p>
+            <div class="dashboard-grid">
+                {% for row in tar_summaries %}
+                    <article class="metric-card">
+                        <h3>{{ row.tar_type }}</h3>
+                        <div class="metric-line">
+                            <span>Mapped Case Count</span>
+                            <strong>{{ row.case_count }}</strong>
+                        </div>
+                        <div class="metric-line">
+                            <span>Pending Total (₹ Lakhs)</span>
+                            <strong>₹ {{ "{:,.2f}".format(row.pending_total_lakhs) }}</strong>
+                        </div>
+                        <div class="metric-actions">
+                            <a class="metric-link" href="/live/{{ row.tar_type }}">Open {{ row.tar_type }} Case Lists</a>
+                            <a class="metric-link" href="/tar-report-dashboard/details/{{ row.tar_type }}?base_month={{ default_base_month }}&compare_month={{ current_month }}">Details</a>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+
+            <div class="split-block">
+                <h3>Recovery Category Split (Mapped Cases)</h3>
+                <div class="table-container split-table">
+                    <table>
+                        <tr>
+                            <th>TAR</th>
+                            <th>Recovery Category</th>
+                            <th>Mapped Case Count</th>
+                            <th>Pending Total (₹ Lakhs)</th>
+                        </tr>
+                        {% for row in category_split %}
+                            <tr>
+                                <td>{{ row.tar_type }}</td>
+                                <td>{{ row.recovery_category }}</td>
+                                <td>{{ row.case_count }}</td>
+                                <td>₹ {{ "{:,.2f}".format(row.pending_total_lakhs) }}</td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                    {% if not category_split %}
+                        <div class="empty-state">No mapped case categories available for this user.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="split-block">
+                <h3>Final Totals by TAR</h3>
+                <div class="table-container split-table">
+                    <table>
+                        <tr>
+                            <th>TAR</th>
+                            <th>Final Count</th>
+                            <th>Final Pending OIO Sum (₹ Lakhs)</th>
+                        </tr>
+                        {% for row in tar_finals %}
+                            <tr>
+                                <td>{{ row.tar_type }}</td>
+                                <td>{{ row.final_count }}</td>
+                                <td>₹ {{ "{:,.2f}".format(row.final_pending_oio_lakhs) }}</td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+</body>
+</html>

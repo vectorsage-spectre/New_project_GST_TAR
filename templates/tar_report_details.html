@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ tar_type }} Detail Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>Logged in as: <b>{{ officer }}</b></div>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>{{ tar_type }} Detail Report</h2>
+            <p class="subtitle">Category-wise month comparison for mapped cases. Amounts shown in ₹ Lakhs (2 decimals).</p>
+            <p class="motto">Desh Sevarth Kar Sanchay</p>
+        </section>
+
+        <div class="nav">
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/tar-report-archives">Archives</a>
+            <a href="/notebook">Notebook</a>
+            <a href="/movement-ledger">Movement Ledger</a>
+            <a href="/live/{{ tar_type }}">Open {{ tar_type }} Case Lists</a>
+        </div>
+
+        <section class="dashboard-wrap">
+            <form method="get" class="bar">
+                <b>Compare Months</b>
+                <input type="month" name="base_month" value="{{ base_month }}" required>
+                <input type="month" name="compare_month" value="{{ compare_month }}" required>
+                <button type="submit">Generate</button>
+            </form>
+
+            <p class="subtitle"><b>Base:</b> {{ base_month }} | <b>Final:</b> {{ compare_month }} ({{ compare_source }})</p>
+            <p class="subtitle"><b>Receipts/Disposals Window:</b> {{ movement_window_label }}</p>
+
+            <div class="split-block">
+                <h3>Fine Report ({{ tar_type }}) By Category</h3>
+                <div class="table-container split-table">
+                    <table style="min-width: 1100px;">
+                        <tr>
+                            <th>Category</th>
+                            {% for c in fine_cols %}
+                                <th colspan="2">{{ c.label }}</th>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            <th></th>
+                            {% for c in fine_cols %}
+                                <th>Count</th>
+                                <th>₹ Lakhs</th>
+                            {% endfor %}
+                        </tr>
+                        {% for r in fine_by_category %}
+                            <tr>
+                                <td><b>{{ r.recovery_category }}</b></td>
+                                {% for c in fine_cols %}
+                                    <td>{{ r[c.key].count }}</td>
+                                    <td>₹ {{ "{:,.2f}".format(r[c.key].pending_lakhs) }}</td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                        <tr class="totals-row">
+                            <td><b>Total</b></td>
+                            {% for c in fine_cols %}
+                                <td><b>{{ fine_totals[c.key].count }}</b></td>
+                                <td><b>₹ {{ "{:,.2f}".format(fine_totals[c.key].pending_lakhs) }}</b></td>
+                            {% endfor %}
+                        </tr>
+                    </table>
+                    {% if not fine_by_category %}
+                        <div class="empty-state">No fine report data available.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="table-container split-table details-table">
+                <table>
+                    <tr>
+                        <th>Category</th>
+                        <th>Base Count</th>
+                        <th>Base Pending (₹ Lakhs)</th>
+                        <th>Final Count</th>
+                        <th>Final Pending OIO Sum (₹ Lakhs)</th>
+                        <th>Change Count</th>
+                        <th>Change Pending OIO (₹ Lakhs)</th>
+                        <th>Receipts Count</th>
+                        <th>Receipts Pending (₹ Lakhs)</th>
+                        <th>Disposals Count</th>
+                        <th>Disposals Pending (₹ Lakhs)</th>
+                    </tr>
+                    {% for row in detail_rows %}
+                        <tr>
+                            <td>{{ row.recovery_category }}</td>
+                            <td>{{ row.base_count }}</td>
+                            <td>₹ {{ "{:,.2f}".format(row.base_pending_lakhs) }}</td>
+                            <td>{{ row.compare_count }}</td>
+                            <td>₹ {{ "{:,.2f}".format(row.compare_pending_lakhs) }}</td>
+                            <td>{{ row.change_count }}</td>
+                            <td>₹ {{ "{:,.2f}".format(row.change_pending_lakhs) }}</td>
+                            <td>{{ row.receipt_count }}</td>
+                            <td>₹ {{ "{:,.2f}".format(row.receipt_pending_lakhs) }}</td>
+                            <td>{{ row.disposal_count }}</td>
+                            <td>₹ {{ "{:,.2f}".format(row.disposal_pending_lakhs) }}</td>
+                        </tr>
+                    {% endfor %}
+                    <tr class="totals-row">
+                        <td><b>Total</b></td>
+                        <td><b>{{ totals.base_count }}</b></td>
+                        <td><b>₹ {{ "{:,.2f}".format(totals.base_pending_lakhs) }}</b></td>
+                        <td><b>{{ totals.compare_count }}</b></td>
+                        <td><b>₹ {{ "{:,.2f}".format(totals.compare_pending_lakhs) }}</b></td>
+                        <td><b>{{ totals.change_count }}</b></td>
+                        <td><b>₹ {{ "{:,.2f}".format(totals.change_pending_lakhs) }}</b></td>
+                        <td><b>{{ totals.receipt_count or 0 }}</b></td>
+                        <td><b>₹ {{ "{:,.2f}".format(totals.receipt_pending_lakhs or 0.0) }}</b></td>
+                        <td><b>{{ totals.disposal_count or 0 }}</b></td>
+                        <td><b>₹ {{ "{:,.2f}".format(totals.disposal_pending_lakhs or 0.0) }}</b></td>
+                    </tr>
+                </table>
+                {% if not detail_rows %}
+                    <div class="empty-state">No category data found for the selected months.</div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+</body>
+</html>

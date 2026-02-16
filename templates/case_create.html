@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create New Case</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <span>New {{ tar_type }} Case | {{ officer }}</span>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
+                </div>
+                <a href="{{ from_page }}">Back to list</a>
+            </div>
+            <h2>Create Case</h2>
+            <p class="subtitle">Add a new case to {{ tar_type }}. It will be mapped to your login automatically.</p>
+        </section>
+
+        <form method="POST">
+            {% if error %}
+                <div class="error">{{ error }}</div>
+            {% endif %}
+            <section class="form-grid">
+                {% for field, label in labels.items() %}
+                    <div class="field">
+                        <label>{{ label }}</label>
+                        {% if field == "recovery_category" %}
+                            <select name="{{ field }}">
+                                <option value="">Select Category</option>
+                                {% for option in category_options %}
+                                    <option value="{{ option.code }}" {% if (form_values and form_values.get(field) == option.code) %}selected{% endif %}>{{ option.label }}</option>
+                                {% endfor %}
+                            </select>
+                        {% elif field == "range_code" %}
+                            <select name="{{ field }}">
+                                <option value="">Select Range</option>
+                                {% for r in ['AWD5','BWD5','CWD5','DWD5','EWD5'] %}
+                                    <option value="{{ r }}" {% if (form_values and form_values.get(field) == r) %}selected{% endif %}>{{ r }}</option>
+                                {% endfor %}
+                            </select>
+                        {% elif field == "oio_date" %}
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <input
+                                    type="text"
+                                    name="oio_date"
+                                    id="oio-date-text-create"
+                                    placeholder="DD/MM/YYYY"
+                                    value="{{ form_values.get('oio_date', '') if form_values else '' }}"
+                                    maxlength="10"
+                                    inputmode="numeric"
+                                    title="Use DD/MM/YYYY"
+                                    required
+                                    style="flex:1;"
+                                >
+                                <input type="date" id="oio-date-picker-create" style="max-width:170px;">
+                            </div>
+                            <small class="subtitle">Format: DD/MM/YYYY (mandatory for new case).</small>
+                        {% elif field == "oio_number" %}
+                            <input type="text" name="{{ field }}" value="{{ form_values.get(field, '') if form_values else '' }}" required>
+                        {% elif field in ["pending_gst","pending_interest","pending_penalty","pending_total","total_oio","total_realised"] %}
+                            <input type="text" name="{{ field }}" value="{{ form_values.get(field, '') if form_values else '' }}" readonly>
+                        {% else %}
+                            <input type="text" name="{{ field }}" value="{{ form_values.get(field, '') if form_values else '' }}">
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </section>
+
+            <div class="actions">
+                <button type="submit">Create Case</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+const oioDateTextCreate = document.getElementById("oio-date-text-create");
+const oioDatePickerCreate = document.getElementById("oio-date-picker-create");
+
+function ddmmyyyyToIso(v) {
+    const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(v || "");
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+}
+function isoToDdmmyyyy(v) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || "");
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
+}
+
+if (oioDateTextCreate && oioDatePickerCreate) {
+    oioDatePickerCreate.value = ddmmyyyyToIso(oioDateTextCreate.value.trim());
+    oioDatePickerCreate.addEventListener("change", function () {
+        if (this.value) {
+            oioDateTextCreate.value = isoToDdmmyyyy(this.value);
+        }
+    });
+    oioDateTextCreate.addEventListener("change", function () {
+        const iso = ddmmyyyyToIso(this.value.trim());
+        oioDatePickerCreate.value = iso;
+    });
+}
+</script>
+</body>
+</html>

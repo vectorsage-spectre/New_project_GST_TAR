@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disposed Cases</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>Disposed Cases | <b>{{ officer }}</b></div>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>Arrear Disposed (Archived)</h2>
+            <p class="subtitle">Cases that were disposed and removed from live TAR lists.</p>
+        </section>
+
+        <div class="nav">
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/disposed-cases">Disposed Cases</a>
+            <a href="/movement-ledger">Movement Ledger</a>
+            <a href="/audit-trail">Audit Trail</a>
+        </div>
+
+        <section class="controls">
+            <div class="bar">
+                <span class="badge">Total Disposed: {{ total_count }}</span>
+                <span class="badge">Pending Sum (₹ Lakhs): ₹ {{ "{:,.2f}".format(total_pending_lakhs) }}</span>
+            </div>
+        </section>
+
+        <section class="table-wrap">
+            <div class="table-container">
+                <table>
+                    <tr>
+                        <th>Disposed At (IST)</th>
+                        <th>Disposed By</th>
+                        <th>From TAR</th>
+                        <th>From Category</th>
+                        <th>Reason</th>
+                        <th>GSTIN</th>
+                        <th>Name</th>
+                        <th>OIO</th>
+                        <th>Pending Total (₹)</th>
+                        <th>Remarks</th>
+                    </tr>
+                    {% for c in cases %}
+                        <tr>
+                            <td>{{ c.disposed_at|ist_datetime }}</td>
+                            <td>{{ c.disposed_by }}</td>
+                            <td>{{ c.original_tar_type }}</td>
+                            <td>{{ c.original_recovery_category }}</td>
+                            <td>{{ c.disposed_reason_text or c.disposed_reason_code or '' }}</td>
+                            <td>{{ c.gstin_raw }}</td>
+                            <td>{{ c.party_name }}</td>
+                            <td>{{ c.oio_display }}</td>
+                            <td>{{ c.pending_total|num0 }}</td>
+                            <td><div class="remarks-cell">{{ c.comments }}</div></td>
+                        </tr>
+                    {% endfor %}
+                </table>
+                {% if not cases %}
+                    <div class="empty-state">No disposed cases found.</div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+</body>
+</html>
+

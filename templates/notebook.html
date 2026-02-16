@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notebook</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>Notebook | <b>{{ officer }}</b></div>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>Personal Notebook</h2>
+            <p class="subtitle">Private notes for your work. Autosaves while you type. Visible only to your login.</p>
+        </section>
+
+        <div class="nav">
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/live/TAR-1">TAR-1</a>
+            <a href="/live/TAR-2">TAR-2</a>
+            <a href="/live/TAR-3">TAR-3</a>
+            <a href="/notebook">Notebook</a>
+        </div>
+
+        <section class="dashboard-wrap">
+            <div class="bar" style="justify-content:space-between;">
+                <div>
+                    <span class="badge">Last Saved: <span id="last-saved">{{ last_saved }}</span></span>
+                    <span class="badge" id="save-status">Idle</span>
+                    <span class="badge">Chars: <span id="char-count">{{ char_count }}</span> / {{ max_chars }}</span>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <a class="metric-link" href="/notebook/download/doc">Download Word</a>
+                    <a class="metric-link" href="/notebook/download/pdf">Download PDF</a>
+                </div>
+            </div>
+
+            <div class="split-block">
+                <label class="subtitle" for="notebook-content"><b>Your Notes</b></label>
+                <textarea id="notebook-content" style="width:100%; min-height:520px; padding:14px; border-radius:12px; border:1px solid var(--border); font-size:13px; line-height:1.55;">{{ content }}</textarea>
+                <p class="subtitle" style="margin-top:10px;">
+                    Note: This notebook is for temporary notes due to space limitation. Max {{ max_chars }} characters per user.
+                </p>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script>
+const textarea = document.getElementById("notebook-content");
+const statusEl = document.getElementById("save-status");
+const lastSavedEl = document.getElementById("last-saved");
+const charCountEl = document.getElementById("char-count");
+const maxChars = {{ max_chars }};
+
+let timer = null;
+let lastValue = textarea.value;
+let inflight = false;
+
+function trimToMaxChars(text, limit) {
+    const raw = text || "";
+    if (raw.length <= limit) return {text: raw, truncated: false, count: raw.length};
+    return {text: raw.slice(0, limit), truncated: true, count: limit};
+}
+
+function updateCharCount() {
+    if (!charCountEl) return;
+    charCountEl.textContent = String((textarea.value || "").length);
+}
+
+async function saveNow() {
+    if (inflight) return;
+    const trimmed = trimToMaxChars(textarea.value, maxChars);
+    if (trimmed.truncated) {
+        textarea.value = trimmed.text;
+    }
+    updateCharCount();
+    const value = textarea.value;
+    if (value === lastValue) return;
+
+    inflight = true;
+    statusEl.textContent = "Saving...";
+    try {
+        const res = await fetch("/notebook/save", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({content: value})
+        });
+        const data = await res.json();
+        if (data && data.ok) {
+            lastValue = value;
+            statusEl.textContent = data.truncated ? "Saved (Trimmed to limit)" : "Saved";
+            lastSavedEl.textContent = data.saved_at || lastSavedEl.textContent;
+            if (charCountEl && typeof data.char_count !== "undefined") {
+                charCountEl.textContent = String(data.char_count);
+            }
+        } else {
+            statusEl.textContent = "Save failed";
+        }
+    } catch (e) {
+        statusEl.textContent = "Save failed";
+    } finally {
+        inflight = false;
+    }
+}
+
+textarea.addEventListener("input", function () {
+    statusEl.textContent = "Typing...";
+    updateCharCount();
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(saveNow, 650);
+});
+
+window.addEventListener("beforeunload", function () {
+    // Best effort final save.
+    if (textarea.value !== lastValue) {
+        navigator.sendBeacon("/notebook/save", JSON.stringify({content: textarea.value}));
+    }
+});
+
+updateCharCount();
+</script>
+
+</body>
+</html>

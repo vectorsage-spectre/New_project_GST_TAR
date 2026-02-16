@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAR Report Archives</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>Logged in as: <b>{{ officer }}</b></div>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>Report Archives</h2>
+            <p class="subtitle">Month-wise archived report summary for mapped cases, starting with January baseline.</p>
+            <p class="motto">Desh Sevarth Kar Sanchay</p>
+        </section>
+
+        <div class="nav">
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/notebook">Notebook</a>
+            <a href="/movement-ledger">Movement Ledger</a>
+        </div>
+
+        <section class="dashboard-wrap">
+            <p class="subtitle"><b>Legend:</b> Pending amounts shown in <b>₹ Lakhs</b> (2 decimals).</p>
+            {% for row in month_summaries %}
+                <div class="split-block">
+                    <h3>{{ row.month }} Archive</h3>
+                    <div class="table-container split-table archive-table">
+                        <table>
+                            <tr>
+                                <th>Month</th>
+                                <th>TAR</th>
+                                <th>Recovery Category</th>
+                                <th>Count</th>
+                                <th>Pending OIO Sum (₹ Lakhs)</th>
+                            </tr>
+                            {% for cat in row.category_rows %}
+                                <tr>
+                                    <td>{{ row.month }}</td>
+                                    <td>{{ cat.tar_type }}</td>
+                                    <td>{{ cat.recovery_category }}</td>
+                                    <td>{{ cat.count }}</td>
+                                    <td>₹ {{ "{:,.2f}".format(cat.pending_lakhs) }}</td>
+                                </tr>
+                            {% endfor %}
+                            <tr class="totals-row">
+                                <td><b>{{ row.month }} Total</b></td>
+                                <td colspan="2"></td>
+                                <td><b>{{ row.final_count }}</b></td>
+                                <td><b>₹ {{ "{:,.2f}".format(row.final_pending_lakhs) }}</b></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            {% endfor %}
+            {% if not month_summaries %}
+                <div class="empty-state">No archive snapshots found.</div>
+            {% endif %}
+        </section>
+    </div>
+</div>
+</body>
+</html>

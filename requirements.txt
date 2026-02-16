@@ -1,0 +1,9 @@
+Flask
+Flask-SQLAlchemy
+Flask-Migrate
+Werkzeug
+pandas
+openpyxl
+fpdf2
+gunicorn
+psycopg2-binary
