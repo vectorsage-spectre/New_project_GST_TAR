@@ -824,6 +824,28 @@ def save_monthly_snapshot(user, snapshot_month, overwrite=False):
     return len(metrics), True
 
 
+def save_monthly_snapshot_all_users(snapshot_month, overwrite=False):
+    users = User.query.order_by(User.id.asc()).all()
+    users_saved = 0
+    users_skipped = 0
+    total_rows = 0
+
+    for u in users:
+        rows, saved = save_monthly_snapshot(u, snapshot_month, overwrite=overwrite)
+        if saved:
+            users_saved += 1
+            total_rows += int(rows or 0)
+        else:
+            users_skipped += 1
+
+    return {
+        "users_total": len(users),
+        "users_saved": users_saved,
+        "users_skipped": users_skipped,
+        "rows_saved": total_rows,
+    }
+
+
 def get_session_user():
     return db.session.get(User, session.get("user_id"))
 
@@ -1515,6 +1537,8 @@ def seed_month_snapshot():
     user = db.session.get(User, session.get("user_id"))
     if not user:
         return redirect("/login")
+    if user.role != "ADMIN":
+        return redirect("/tar-report-dashboard?msg=not_allowed")
 
     snapshot_month = request.form.get("snapshot_month", "").strip()
     if not is_valid_month_key(snapshot_month):
@@ -1532,11 +1556,12 @@ def seed_month_snapshot():
         return redirect("/tar-report-dashboard?msg=invalid_admin_auth")
 
     overwrite_existing = (request.form.get("overwrite_existing") or "").strip() == "1"
-    saved_rows, saved = save_monthly_snapshot(user, snapshot_month, overwrite=overwrite_existing)
-    if not saved:
+    result = save_monthly_snapshot_all_users(snapshot_month, overwrite=overwrite_existing)
+    if result["users_saved"] == 0:
         return redirect(f"/tar-report-dashboard?msg=snapshot_exists&snapshot_month={snapshot_month}")
     return redirect(
-        f"/tar-report-dashboard?msg=seeded&snapshot_month={snapshot_month}&rows={saved_rows}"
+        f"/tar-report-dashboard?msg=seeded&snapshot_month={snapshot_month}"
+        f"&rows={result['rows_saved']}&users_saved={result['users_saved']}&users_total={result['users_total']}"
     )
 
 

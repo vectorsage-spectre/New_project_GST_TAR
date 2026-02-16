@@ -37,7 +37,11 @@
 
         <section class="dashboard-wrap">
             {% if request.args.get("msg") == "seeded" %}
-                <div class="success">Snapshot saved for {{ request.args.get("snapshot_month") }} with {{ request.args.get("rows") }} category rows.</div>
+                <div class="success">
+                    Snapshot saved for {{ request.args.get("snapshot_month") }}.
+                    Users updated: {{ request.args.get("users_saved") }}/{{ request.args.get("users_total") }}.
+                    Total category rows saved: {{ request.args.get("rows") }}.
+                </div>
             {% elif request.args.get("msg") == "invalid_month" %}
                 <div class="error">Invalid month format. Use YYYY-MM.</div>
             {% elif request.args.get("msg") == "confirm_required" %}
@@ -46,6 +50,8 @@
                 <div class="error">Admin authentication failed. Snapshot not saved.</div>
             {% elif request.args.get("msg") == "snapshot_exists" %}
                 <div class="error">Snapshot for {{ request.args.get("snapshot_month") }} already exists. Enable replace to overwrite it.</div>
+            {% elif request.args.get("msg") == "not_allowed" %}
+                <div class="error">Only ADMIN can take global snapshots.</div>
             {% endif %}
 
             <p class="subtitle"><b>Legend:</b> All amounts are shown in <b>₹ Lakhs</b> and rounded to 2 decimals.</p>
