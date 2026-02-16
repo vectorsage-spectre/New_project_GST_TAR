@@ -160,12 +160,23 @@ def clean_date(value):
     if pd.isna(value):
         return None
     try:
-        return pd.to_datetime(value, errors='coerce')
-    except:
+        dt = pd.to_datetime(value, errors='coerce', dayfirst=True)
+        if pd.isna(dt):
+            return None
+        # Store dates as DD/MM/YYYY text for cross-DB compatibility.
+        return dt.strftime("%d/%m/%Y")
+    except Exception:
         return None
 
 
 def seed_master_excel(file_path):
+    if not os.path.isabs(file_path):
+        file_path = os.path.join(os.path.dirname(__file__), file_path)
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Seed file not found: {file_path}")
+
+    # Reset live case data and related direct mappings before import.
+    CaseUserMapping.query.delete()
     Case.query.delete()
     db.session.commit()
     df = pd.read_excel(file_path)
@@ -200,17 +211,21 @@ def seed_master_excel(file_path):
         'Date of appeal filing or appeal decision': ('concern_date', clean_date),
     }
 
-    for _, row in df.iterrows():
-        case = Case()
+    try:
+        for _, row in df.iterrows():
+            case = Case()
 
-        for col, (db_field, cleaner) in mapping.items():
-            value = cleaner(row.get(col))
-            setattr(case, db_field, value)
+            for col, (db_field, cleaner) in mapping.items():
+                value = cleaner(row.get(col))
+                setattr(case, db_field, value)
 
-        db.session.add(case)
+            db.session.add(case)
 
-    db.session.commit()
-    print("🌱 Master Excel Seeded Successfully!")
+        db.session.commit()
+        print("Master Excel seeded successfully.")
+    except Exception:
+        db.session.rollback()
+        raise
 
 # PART-2 ---------------------------------------------------------    
 
@@ -283,6 +298,9 @@ if db_url.startswith("postgres://"):
 if db_url:
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 else:
+    # Prevent silent data loss on Render restarts when DB URL is missing.
+    if os.environ.get("RENDER"):
+        raise RuntimeError("DATABASE_URL is required on Render. Attach a Render Postgres database.")
     os.makedirs(app.instance_path, exist_ok=True)
     app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(app.instance_path, 'gst_tar.db')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -310,9 +328,12 @@ def home():
 def seed(key):
     if key != "saksham_only_seed":
         return "Not Allowed ❌"
-
-    seed_master_excel("master_seed.xlsx")
-    return "Seeding Done ✅"
+    try:
+        seed_master_excel("master_seed.xlsx")
+        return "Seeding Done ✅"
+    except Exception as e:
+        db.session.rollback()
+        return f"Seeding failed ❌: {str(e)}", 500
 
 
 # ----------------- COMMON FILTER FUNCTION -----------------
@@ -2106,10 +2127,13 @@ def admin_mapping():
                 query = query.filter(Case.recovery_category == recovery_category)
 
             matched_cases = query.all()
+            total_matched = len(matched_cases)
             newly_mapped = 0
+            already_mapped = 0
             for case in matched_cases:
                 exists = CaseUserMapping.query.filter_by(case_id=case.id, user_id=target_user.id).first()
                 if exists:
+                    already_mapped += 1
                     continue
                 db.session.add(
                     CaseUserMapping(
@@ -2127,7 +2151,7 @@ def admin_mapping():
                     tar_type=tar_type or None,
                     range_code=range_code or None,
                     recovery_category=recovery_category or None,
-                    matched_case_count=newly_mapped,
+                    matched_case_count=total_matched,
                 )
             )
             db.session.commit()
@@ -2140,7 +2164,10 @@ def admin_mapping():
                 users=users,
                 mapping_rules=mapping_rules,
                 category_options=CATEGORY_OPTIONS,
-                success=f"Mapped {newly_mapped} new case(s) to {target_user.name}. Existing mappings were retained."
+                success=(
+                    f"Mapping result for {target_user.name}: "
+                    f"Total matched={total_matched}, Newly mapped={newly_mapped}, Already mapped={already_mapped}."
+                )
             )
 
         if action == "delete_user":
