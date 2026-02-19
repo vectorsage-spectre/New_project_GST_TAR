@@ -49,6 +49,11 @@ TAR_CATEGORY_MAP = {
     "TAR-2": ["WAP", "DIF"],
     "TAR-3": ["A1","A2","A3","A4","A5","A6","A7","A8","A9","A10"]
 }
+CATEGORY_TO_TAR = {
+    cat: tar
+    for tar, cats in TAR_CATEGORY_MAP.items()
+    for cat in cats
+}
 
 CATEGORY_DETAILS = {
     "A1": "Action taken under 79(1)(a)",
@@ -457,6 +462,12 @@ def clean_form_value(field_name, raw_value):
             return None
 
     return cleaned
+
+
+def get_tar_for_category(category_code):
+    if not category_code:
+        return None
+    return CATEGORY_TO_TAR.get(str(category_code).strip())
 
 
 def parse_numeric_optional(raw_value):
@@ -2806,10 +2817,17 @@ def case_update(id):
 
         recalc_financials(new_values)
 
-        # Detect movement only based on fields actually editable in this form.
-        # Currently TAR (appeal_status) isn't editable here, so we only treat recovery_category change as a move.
+        # Auto-derive TAR from selected category.
+        # Mapping rule:
+        # TAR-1: SC, HC, GSTAT, Comm_A, ADC_A
+        # TAR-2: WAP, DIF
+        # TAR-3: A1-A10
         intended_new_tar = prev_tar
         intended_new_cat = new_values.get("recovery_category")
+        if intended_new_cat and intended_new_cat != DISPOSED_CATEGORY_CODE:
+            mapped_tar = get_tar_for_category(intended_new_cat)
+            if mapped_tar:
+                intended_new_tar = mapped_tar
         moved = (intended_new_tar != prev_tar) or (intended_new_cat != prev_cat)
 
         movement_reason_code = (request.form.get("movement_reason") or "").strip()
@@ -2921,6 +2939,19 @@ def case_update(id):
                     )
                 )
                 setattr(case, field, new_value)
+
+        # Apply TAR move explicitly when category implies a different TAR.
+        if intended_new_cat != DISPOSED_CATEGORY_CODE and intended_new_tar != prev_tar:
+            db.session.add(
+                CaseChange(
+                    case_id=case.id,
+                    changed_by=officer_name,
+                    field_changed="appeal_status",
+                    old_value=str(prev_tar),
+                    new_value=str(intended_new_tar),
+                )
+            )
+            case.appeal_status = intended_new_tar
 
         # If case moved across list (TAR/category), log movement.
         if prev_tar != case.appeal_status or prev_cat != case.recovery_category:
@@ -3086,6 +3117,9 @@ def create_case(tar_type):
         new_values["oio_date"] = normalized_oio_date
         new_values["oio_display"] = f"{oio_number} dated {normalized_oio_date}"
         recalc_financials(new_values)
+        mapped_tar = get_tar_for_category(new_values.get("recovery_category"))
+        if mapped_tar:
+            case.appeal_status = mapped_tar
 
         for field in FIELD_LABELS.keys():
             setattr(case, field, new_values.get(field))
