@@ -35,6 +35,7 @@
                 {% endif %}
                 <a class="metric-link" href="{{ export_url }}">Download Excel</a>
                 <a class="metric-link" href="/case/new/{{ tar_type }}?from_page={{ request.full_path|urlencode }}">Add New Case</a>
+                <a class="metric-link" href="/live/{{ tar_type }}/presentation{% if request.query_string %}?{{ request.query_string.decode('utf-8') }}{% endif %}">Presentation View</a>
             </div>
 
             <form method="get" class="bar">

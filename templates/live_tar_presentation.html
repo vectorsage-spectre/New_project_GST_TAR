@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ tar_type }} Presentation View</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="presentation-body">
+<div class="presentation-shell">
+    <section class="presentation-head">
+        <div class="presentation-title">
+            <h2>{{ tar_type }} Presentation View</h2>
+            <p>Category-wise live cases for review and discussion</p>
+        </div>
+        <div class="presentation-actions">
+            <button type="button" class="metric-link" onclick="enterFullScreen()">Full Screen</button>
+            <a class="metric-link" href="/live/{{ tar_type }}{% if current_query_string %}?{{ current_query_string }}{% endif %}">Back to Live List</a>
+        </div>
+    </section>
+
+    <section class="presentation-table-wrap">
+        <div class="table-container presentation-table-container">
+            <table class="presentation-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Name</th>
+                        <th>OIO No. and Date</th>
+                        <th>Issue in brief</th>
+                        <th>Pending Total Amount</th>
+                        <th>Remarks</th>
+                        <th>Range</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for case in cases %}
+                    <tr class="clickable" onclick="location.href='/case/{{ case.id }}?from_page={{ request.full_path|urlencode }}'">
+                        <td>{{ case.recovery_category }}</td>
+                        <td>{{ case.party_name }}</td>
+                        <td>{{ case.oio_display }}</td>
+                        <td>{{ case.issue_brief }}</td>
+                        <td>{{ case.pending_total|num0 }}</td>
+                        <td><div class="presentation-remarks">{{ case.comments }}</div></td>
+                        <td>{{ case.range_code }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% if not cases %}
+                <div class="empty-state">No cases match current filters.</div>
+            {% endif %}
+        </div>
+    </section>
+</div>
+
+<script>
+function enterFullScreen() {
+    const el = document.documentElement;
+    if (el.requestFullscreen) {
+        el.requestFullscreen();
+    }
+}
+</script>
+</body>
+</html>

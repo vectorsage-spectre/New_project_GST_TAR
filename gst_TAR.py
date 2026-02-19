@@ -1426,6 +1426,24 @@ def live_tar(tar_type):
     )
 
 
+@app.route("/live/<tar_type>/presentation")
+def live_tar_presentation(tar_type):
+    user = db.session.get(User, session.get("user_id"))
+    if not user:
+        return redirect("/login")
+
+    tar_type = tar_type.upper()
+    cases = get_filtered_cases(tar_type, user.id)
+
+    return render_template(
+        "live_tar_presentation.html",
+        cases=cases,
+        officer=user.name,
+        tar_type=tar_type,
+        current_query_string=request.query_string.decode("utf-8"),
+    )
+
+
 @app.route("/live/<tar_type>/export")
 def export_live_cases(tar_type):
     user = db.session.get(User, session.get("user_id"))

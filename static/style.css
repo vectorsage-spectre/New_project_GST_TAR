@@ -395,6 +395,114 @@ button:hover {
     color: var(--muted);
 }
 
+.presentation-body {
+    margin: 0;
+    background: linear-gradient(180deg, #f4f8ff 0%, #ffffff 100%);
+}
+
+.presentation-shell {
+    width: 100vw;
+    min-height: 100vh;
+    padding: 14px 18px 16px;
+    box-sizing: border-box;
+}
+
+.presentation-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.presentation-title h2 {
+    margin: 0;
+    font-size: 24px;
+    color: #0f2e64;
+}
+
+.presentation-title p {
+    margin: 2px 0 0;
+    color: #45618d;
+    font-size: 13px;
+}
+
+.presentation-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.presentation-table-wrap {
+    height: calc(100vh - 110px);
+}
+
+.presentation-table-container {
+    height: 100%;
+    border-radius: 14px;
+    box-shadow: var(--shadow-md);
+}
+
+.presentation-table {
+    min-width: 0;
+    width: 100%;
+    table-layout: fixed;
+    font-size: 13px;
+}
+
+.presentation-table th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #10346f;
+    color: #ffffff;
+}
+
+.presentation-table th:nth-child(1),
+.presentation-table td:nth-child(1) {
+    width: 8%;
+}
+
+.presentation-table th:nth-child(2),
+.presentation-table td:nth-child(2) {
+    width: 22%;
+}
+
+.presentation-table th:nth-child(3),
+.presentation-table td:nth-child(3) {
+    width: 15%;
+}
+
+.presentation-table th:nth-child(4),
+.presentation-table td:nth-child(4) {
+    width: 14%;
+}
+
+.presentation-table th:nth-child(5),
+.presentation-table td:nth-child(5) {
+    width: 11%;
+}
+
+.presentation-table th:nth-child(6),
+.presentation-table td:nth-child(6) {
+    width: 24%;
+}
+
+.presentation-table th:nth-child(7),
+.presentation-table td:nth-child(7) {
+    width: 6%;
+}
+
+.presentation-table td {
+    background: #ffffff;
+}
+
+.presentation-remarks {
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.35;
+}
+
 .table-container {
     max-height: 560px;
     overflow: auto;
