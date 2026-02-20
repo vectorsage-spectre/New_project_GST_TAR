@@ -31,7 +31,7 @@
                         <th>Name</th>
                         <th>OIO No. and Date</th>
                         <th>Issue in brief</th>
-                        <th>Pending Total Amount</th>
+                        <th>Pending Total (₹ Lakhs)</th>
                         <th>Remarks</th>
                         <th>Range</th>
                     </tr>
@@ -43,7 +43,7 @@
                         <td>{{ case.party_name }}</td>
                         <td>{{ case.oio_display }}</td>
                         <td>{{ case.issue_brief }}</td>
-                        <td>{{ case.pending_total|num0 }}</td>
+                        <td>₹ {{ "{:,.2f}".format((case.pending_total|num0) / 100000) }}</td>
                         <td><div class="presentation-remarks">{{ case.comments }}</div></td>
                         <td>{{ case.range_code }}</td>
                     </tr>
