@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Range-Wise Data Details</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>Logged in as: <b>{{ officer }}</b></div>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>Range-Wise Data Details</h2>
+            <p class="subtitle">Mapped case analytics by range, TAR, and TAR-3 A1-A10 categories.</p>
+            <p class="motto">Desh Sevarth Kar Sanchay</p>
+        </section>
+
+        <div class="nav">
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/range-wise-details">Range-Wise Data Details</a>
+            <a href="/tar-report-archives">Archives</a>
+            <a href="/notebook">Notebook</a>
+            <a href="/movement-ledger">Movement Ledger</a>
+            <a href="/disposed-cases">Disposed Cases</a>
+        </div>
+
+        <section class="dashboard-wrap">
+            <div class="split-block">
+                <h3>All Cases Combined</h3>
+                <div class="chart-grid two">
+                    <article class="chart-card">
+                        <h4>Amount Distribution Across Ranges (₹ Lakhs)</h4>
+                        <canvas id="allAmountPie"></canvas>
+                    </article>
+                    <article class="chart-card">
+                        <h4>Case Count Distribution Across Ranges</h4>
+                        <canvas id="allCountBar"></canvas>
+                    </article>
+                </div>
+            </div>
+
+            {% for tar in ["TAR-1", "TAR-2", "TAR-3"] %}
+            <div class="split-block">
+                <h3>{{ tar }} Range Distribution</h3>
+                <div class="chart-grid two">
+                    <article class="chart-card">
+                        <h4>{{ tar }} Amount Distribution (₹ Lakhs)</h4>
+                        <canvas id="{{ tar }}AmountPie"></canvas>
+                    </article>
+                    <article class="chart-card">
+                        <h4>{{ tar }} Case Count Distribution</h4>
+                        <canvas id="{{ tar }}CountBar"></canvas>
+                    </article>
+                </div>
+            </div>
+            {% endfor %}
+
+            <div class="split-block">
+                <h3>TAR-3 A1-A10: Range Contribution (All Categories)</h3>
+                <div class="chart-grid two">
+                    <article class="chart-card">
+                        <h4>Count Contribution by Range and Category</h4>
+                        <canvas id="aRangeStackCount"></canvas>
+                    </article>
+                    <article class="chart-card">
+                        <h4>Amount Contribution by Range and Category (₹ Lakhs)</h4>
+                        <canvas id="aRangeStackAmount"></canvas>
+                    </article>
+                </div>
+            </div>
+
+            <div class="split-block">
+                <h3>A1-A10: Separate Distribution Across Ranges</h3>
+                <div class="chart-grid a-grid">
+                    {% for cat in a_categories %}
+                    <article class="chart-card compact">
+                        <h4>{{ cat }} Amount Distribution (₹ Lakhs)</h4>
+                        <canvas id="{{ cat }}AmountPie"></canvas>
+                    </article>
+                    {% endfor %}
+                </div>
+                <div class="chart-grid a-grid">
+                    {% for cat in a_categories %}
+                    <article class="chart-card compact">
+                        <h4>{{ cat }} Case Count Distribution</h4>
+                        <canvas id="{{ cat }}CountBar"></canvas>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="split-block">
+                <h3>For Each Range: Distribution Across A1-A10</h3>
+                <div class="bar">
+                    <b>Select Range</b>
+                    <select id="rangeSelect"></select>
+                </div>
+                <div class="chart-grid two">
+                    <article class="chart-card">
+                        <h4 id="rangeCountTitle">Category Count Distribution</h4>
+                        <canvas id="rangeCategoryCount"></canvas>
+                    </article>
+                    <article class="chart-card">
+                        <h4 id="rangeAmountTitle">Category Amount Distribution (₹ Lakhs)</h4>
+                        <canvas id="rangeCategoryAmount"></canvas>
+                    </article>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script>
+const chartData = {{ chart_data|tojson }};
+const aCategories = {{ a_categories|tojson }};
+const ranges = chartData.ranges || [];
+const colors = ["#1b5fbf", "#2f8f4f", "#ca7a06", "#8a3fd1", "#00838f", "#c13d5e", "#5a6f08", "#ad1457", "#3949ab", "#7b1fa2"];
+
+function toLakhs(value) {
+    return (Number(value || 0) / 100000.0);
+}
+
+function extractSeries(mapObj, metric, convertLakhs) {
+    return ranges.map((r) => {
+        const raw = Number((((mapObj || {})[r] || {})[metric]) || 0);
+        return convertLakhs ? toLakhs(raw) : raw;
+    });
+}
+
+function buildPie(id, labels, data, unitSuffix) {
+    const ctx = document.getElementById(id);
+    if (!ctx) return null;
+    return new Chart(ctx, {
+        type: "pie",
+        data: {
+            labels,
+            datasets: [{
+                data,
+                backgroundColor: labels.map((_, i) => colors[i % colors.length]),
+                borderColor: "#ffffff",
+                borderWidth: 2,
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: "bottom" },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => `${ctx.label}: ${Number(ctx.raw || 0).toLocaleString("en-IN", {maximumFractionDigits: 2, minimumFractionDigits: 2})}${unitSuffix || ""}`,
+                    }
+                }
+            }
+        }
+    });
+}
+
+function buildBar(id, labels, data, label, yTitle, isLakhs) {
+    const ctx = document.getElementById(id);
+    if (!ctx) return null;
+    return new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels,
+            datasets: [{
+                label,
+                data,
+                backgroundColor: labels.map((_, i) => colors[i % colors.length]),
+                borderRadius: 8,
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: yTitle },
+                    ticks: {
+                        callback: (v) => isLakhs
+                            ? `₹ ${Number(v).toLocaleString("en-IN", {maximumFractionDigits: 2})}`
+                            : Number(v).toLocaleString("en-IN")
+                    }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => isLakhs
+                            ? `₹ ${Number(ctx.raw || 0).toLocaleString("en-IN", {minimumFractionDigits: 2, maximumFractionDigits: 2})} Lakhs`
+                            : `${Number(ctx.raw || 0).toLocaleString("en-IN")} cases`
+                    }
+                }
+            }
+        }
+    });
+}
+
+function buildStacked(id, labels, datasets, yTitle, isLakhs) {
+    const ctx = document.getElementById(id);
+    if (!ctx) return null;
+    return new Chart(ctx, {
+        type: "bar",
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { stacked: true },
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    title: { display: true, text: yTitle },
+                    ticks: {
+                        callback: (v) => isLakhs
+                            ? `₹ ${Number(v).toLocaleString("en-IN", {maximumFractionDigits: 2})}`
+                            : Number(v).toLocaleString("en-IN")
+                    }
+                }
+            },
+            plugins: {
+                legend: { position: "bottom" },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => {
+                            const val = Number(ctx.raw || 0);
+                            if (isLakhs) {
+                                return `${ctx.dataset.label}: ₹ ${val.toLocaleString("en-IN", {minimumFractionDigits: 2, maximumFractionDigits: 2})} Lakhs`;
+                            }
+                            return `${ctx.dataset.label}: ${val.toLocaleString("en-IN")} cases`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+const overallAmountLakhs = extractSeries(chartData.overall, "amount", true);
+const overallCounts = extractSeries(chartData.overall, "count", false);
+buildPie("allAmountPie", ranges, overallAmountLakhs, " Lakhs");
+buildBar("allCountBar", ranges, overallCounts, "Cases", "Cases", false);
+
+["TAR-1", "TAR-2", "TAR-3"].forEach((tar) => {
+    const mapObj = (chartData.tar || {})[tar] || {};
+    buildPie(`${tar}AmountPie`, ranges, extractSeries(mapObj, "amount", true), " Lakhs");
+    buildBar(`${tar}CountBar`, ranges, extractSeries(mapObj, "count", false), "Cases", "Cases", false);
+});
+
+const stackCountDatasets = aCategories.map((cat, idx) => {
+    return {
+        label: cat,
+        data: ranges.map((r) => Number((((chartData.range_category || {})[r] || {})[cat] || {}).count || 0)),
+        backgroundColor: colors[idx % colors.length],
+    };
+});
+const stackAmountDatasets = aCategories.map((cat, idx) => {
+    return {
+        label: cat,
+        data: ranges.map((r) => toLakhs(Number((((chartData.range_category || {})[r] || {})[cat] || {}).amount || 0))),
+        backgroundColor: colors[idx % colors.length],
+    };
+});
+buildStacked("aRangeStackCount", ranges, stackCountDatasets, "Cases", false);
+buildStacked("aRangeStackAmount", ranges, stackAmountDatasets, "₹ Lakhs", true);
+
+aCategories.forEach((cat) => {
+    const mapObj = (chartData.a_categories || {})[cat] || {};
+    buildPie(`${cat}AmountPie`, ranges, extractSeries(mapObj, "amount", true), " Lakhs");
+    buildBar(`${cat}CountBar`, ranges, extractSeries(mapObj, "count", false), "Cases", "Cases", false);
+});
+
+const rangeSelect = document.getElementById("rangeSelect");
+let rangeCountChart = null;
+let rangeAmountChart = null;
+
+function renderRangeCategoryCharts(selectedRange) {
+    const row = ((chartData.range_category || {})[selectedRange] || {});
+    const countData = aCategories.map((cat) => Number((row[cat] || {}).count || 0));
+    const amountDataLakhs = aCategories.map((cat) => toLakhs(Number((row[cat] || {}).amount || 0)));
+
+    document.getElementById("rangeCountTitle").textContent = `${selectedRange}: Category Count Distribution`;
+    document.getElementById("rangeAmountTitle").textContent = `${selectedRange}: Category Amount Distribution (₹ Lakhs)`;
+
+    if (rangeCountChart) rangeCountChart.destroy();
+    if (rangeAmountChart) rangeAmountChart.destroy();
+
+    rangeCountChart = buildBar("rangeCategoryCount", aCategories, countData, "Cases", "Cases", false);
+    rangeAmountChart = buildBar("rangeCategoryAmount", aCategories, amountDataLakhs, "₹ Lakhs", "₹ Lakhs", true);
+}
+
+if (rangeSelect) {
+    ranges.forEach((r) => {
+        const op = document.createElement("option");
+        op.value = r;
+        op.textContent = r;
+        rangeSelect.appendChild(op);
+    });
+    if (ranges.length > 0) {
+        rangeSelect.value = ranges[0];
+        renderRangeCategoryCharts(ranges[0]);
+    }
+    rangeSelect.addEventListener("change", (e) => renderRangeCategoryCharts(e.target.value));
+}
+</script>
+</body>
+</html>

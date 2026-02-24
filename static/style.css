@@ -503,6 +503,48 @@ button:hover {
     line-height: 1.35;
 }
 
+.chart-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.chart-grid.two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.chart-grid.a-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 10px;
+}
+
+.chart-card {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    padding: 12px;
+    box-shadow: var(--shadow-sm);
+    min-height: 300px;
+}
+
+.chart-card h4 {
+    margin: 0 0 8px;
+    color: #173b78;
+    font-size: 13px;
+}
+
+.chart-card.compact {
+    min-height: 260px;
+}
+
+.chart-card canvas {
+    width: 100% !important;
+    height: 235px !important;
+}
+
+.chart-card.compact canvas {
+    height: 200px !important;
+}
+
 .table-container {
     max-height: 560px;
     overflow: auto;
@@ -795,6 +837,11 @@ tr.clickable:hover {
     .dashboard-grid,
     .form-grid,
     .profile-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-grid.two,
+    .chart-grid.a-grid {
         grid-template-columns: 1fr;
     }
 

@@ -1561,6 +1561,84 @@ def tar_report_dashboard():
     )
 
 
+@app.route("/range-wise-details")
+def range_wise_details():
+    user = db.session.get(User, session.get("user_id"))
+    if not user:
+        return redirect("/login")
+
+    rows = (
+        db.session.query(
+            Case.appeal_status,
+            Case.recovery_category,
+            Case.range_code,
+            func.count(Case.id),
+            func.coalesce(func.sum(Case.pending_total), 0.0),
+        )
+        .select_from(Case)
+        .join(CaseUserMapping, CaseUserMapping.case_id == Case.id)
+        .filter(CaseUserMapping.user_id == user.id)
+        .group_by(Case.appeal_status, Case.recovery_category, Case.range_code)
+        .all()
+    )
+
+    ranges = set()
+    for _, _, range_code, _, _ in rows:
+        ranges.add((range_code or "").strip() or "UNSPECIFIED")
+
+    preferred_ranges = ["AWD5", "BWD5", "CWD5", "DWD5", "EWD5"]
+    range_labels = [r for r in preferred_ranges if r in ranges]
+    range_labels += sorted([r for r in ranges if r not in preferred_ranges])
+
+    def empty_map():
+        return {r: {"count": 0, "amount": 0.0} for r in range_labels}
+
+    chart_data = {
+        "ranges": range_labels,
+        "overall": empty_map(),
+        "tar": {
+            "TAR-1": empty_map(),
+            "TAR-2": empty_map(),
+            "TAR-3": empty_map(),
+        },
+        "a_categories": {cat: empty_map() for cat in TAR_CATEGORY_MAP["TAR-3"]},
+        "range_category": {
+            r: {cat: {"count": 0, "amount": 0.0} for cat in TAR_CATEGORY_MAP["TAR-3"]}
+            for r in range_labels
+        },
+    }
+
+    for tar_type, recovery_category, range_code, case_count, pending_sum in rows:
+        tar_key = (tar_type or "").strip().upper()
+        cat_key = (recovery_category or "").strip()
+        range_key = (range_code or "").strip() or "UNSPECIFIED"
+        count = int(case_count or 0)
+        amount = float(pending_sum or 0.0)
+
+        if range_key not in chart_data["overall"]:
+            continue
+
+        chart_data["overall"][range_key]["count"] += count
+        chart_data["overall"][range_key]["amount"] += amount
+
+        if tar_key in chart_data["tar"]:
+            chart_data["tar"][tar_key][range_key]["count"] += count
+            chart_data["tar"][tar_key][range_key]["amount"] += amount
+
+        if tar_key == "TAR-3" and cat_key in chart_data["a_categories"]:
+            chart_data["a_categories"][cat_key][range_key]["count"] += count
+            chart_data["a_categories"][cat_key][range_key]["amount"] += amount
+            chart_data["range_category"][range_key][cat_key]["count"] += count
+            chart_data["range_category"][range_key][cat_key]["amount"] += amount
+
+    return render_template(
+        "range_wise_details.html",
+        officer=user.name,
+        chart_data=chart_data,
+        a_categories=TAR_CATEGORY_MAP["TAR-3"],
+    )
+
+
 @app.route("/tar-report-dashboard/seed-month", methods=["POST"])
 def seed_month_snapshot():
     user = db.session.get(User, session.get("user_id"))
