@@ -473,6 +473,25 @@ button:hover {
     gap: 6px 8px;
 }
 
+.category-dropdown-list .inline-check {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    line-height: 1.2;
+    color: #1f355c;
+    min-width: 0;
+}
+
+.category-dropdown-list .inline-check input[type="checkbox"] {
+    width: 14px;
+    min-width: 14px;
+    height: 14px;
+    margin: 0;
+    padding: 0;
+    flex: 0 0 14px;
+}
+
 .presentation-body {
     margin: 0;
     background: linear-gradient(180deg, #f4f8ff 0%, #ffffff 100%);
