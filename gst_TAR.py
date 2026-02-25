@@ -476,6 +476,14 @@ def get_tar_for_category(category_code):
     return CATEGORY_TO_TAR.get(str(category_code).strip())
 
 
+def remarks_changed_significantly(old_value, new_value, threshold=5):
+    old_text = (old_value or "").strip()
+    new_text = (new_value or "").strip()
+    if old_text == new_text:
+        return False
+    return abs(len(new_text) - len(old_text)) > int(threshold)
+
+
 def parse_numeric_optional(raw_value):
     # Returns (value, error). Empty => (None, None). Invalid => (None, error).
     if raw_value is None:
@@ -2991,7 +2999,8 @@ def case_update(id):
             # For DISP disposal flow, we append only once inside the disposal handler.
             if intended_new_cat != DISPOSED_CATEGORY_CODE:
                 reason_text = reason_map[movement_reason_code]
-                new_values["comments"] = append_reason_to_remarks(new_values.get("comments"), reason_text)
+                if not remarks_changed_significantly(case.comments, new_values.get("comments"), threshold=5):
+                    new_values["comments"] = append_reason_to_remarks(new_values.get("comments"), reason_text)
 
         # If user selected "Arrear Disposed", archive and remove from live DB.
         if new_values.get("recovery_category") == DISPOSED_CATEGORY_CODE:
@@ -3016,7 +3025,8 @@ def case_update(id):
 
             reason_text = reason_map[movement_reason_code]
             # Append disposal reason to remarks before archiving.
-            new_values["comments"] = append_reason_to_remarks(new_values.get("comments"), reason_text)
+            if not remarks_changed_significantly(case.comments, new_values.get("comments"), threshold=5):
+                new_values["comments"] = append_reason_to_remarks(new_values.get("comments"), reason_text)
             case.comments = new_values.get("comments")
             db.session.add(
                 CaseChange(
