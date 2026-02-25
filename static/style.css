@@ -544,6 +544,7 @@ button:hover {
 
 .presentation-table-container {
     height: 100%;
+    max-height: none;
     border-radius: 14px;
     box-shadow: var(--shadow-md);
 }
