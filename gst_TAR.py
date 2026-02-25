@@ -307,6 +307,14 @@ def parse_audit_float(value):
     except ValueError:
         return 0.0
 
+
+def is_paid_in_full_reason(reason_code, reason_text):
+    rc = (reason_code or "").strip().upper()
+    rt = (reason_text or "").strip().lower()
+    if rc in {"T1_PAID", "T2_PAID", "T3_PAID"}:
+        return True
+    return ("paid in full" in rt) or ("arrear realised" in rt) or ("arrears realised" in rt)
+
 # ---------------- DATABASE CONFIG ----------------
 # Render: set DATABASE_URL (usually Postgres). If absent, fallback to local SQLite in instance/.
 db_url = os.environ.get("DATABASE_URL", "").strip()
@@ -3426,6 +3434,42 @@ def recovery_section():
         affected_case_ids.add(ch.case_id)
         if ch.case_id not in latest_total_realised_by_case:
             latest_total_realised_by_case[ch.case_id] = new_num
+
+    # Also capture disposed cases where reason is paid-in-full.
+    # Avoid double counting: include only if the case does not already have a total_realised
+    # change event captured above.
+    disposed_q = DisposedCase.query
+    if user.role != "ADMIN":
+        disposed_q = disposed_q.filter(DisposedCase.disposed_by == user.name)
+    disposed_rows = disposed_q.order_by(DisposedCase.disposed_at.desc(), DisposedCase.id.desc()).limit(1000).all()
+    for dc in disposed_rows:
+        if not is_paid_in_full_reason(dc.disposed_reason_code, dc.disposed_reason_text):
+            continue
+        case_id = int(dc.original_case_id or 0)
+        if case_id in latest_total_realised_by_case:
+            continue
+        realised_amount = float(dc.total_realised or 0.0)
+        if abs(realised_amount) < 1e-9:
+            continue
+
+        rows.append({
+            "timestamp": dc.disposed_at,
+            "changed_by": dc.disposed_by,
+            "case_id": case_id,
+            "field_changed": "total_realised (disposed-paid-full)",
+            "old_value": 0.0,
+            "new_value": realised_amount,
+            "delta": realised_amount,
+            "name": dc.party_name or "",
+            "gstin": dc.gstin_raw or "",
+            "oio": dc.oio_display or "",
+            "tar": dc.original_tar_type or dc.appeal_status or "",
+            "category": dc.original_recovery_category or dc.recovery_category or "",
+            "range_code": dc.range_code or "",
+        })
+        total_recovery_change += realised_amount
+        affected_case_ids.add(case_id)
+        latest_total_realised_by_case[case_id] = realised_amount
 
     return render_template(
         "recovery_section.html",
