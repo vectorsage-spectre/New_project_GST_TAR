@@ -57,13 +57,31 @@
             <form method="get" class="bar">
                 <b>Filter</b>
 
-                <div class="category-check-grid">
-                    {% for c in categories %}
-                    <label class="inline-check">
-                        <input type="checkbox" name="cat" value="{{ c }}" {% if c in selected_categories %}checked{% endif %}>
-                        {{ c }}
-                    </label>
-                    {% endfor %}
+                <div class="category-dropdown" id="categoryDropdown">
+                    <button type="button" class="category-dropdown-toggle" id="categoryDropdownToggle">
+                        Category
+                        <span class="category-dropdown-summary" id="categoryDropdownSummary">
+                            {% if selected_categories %}
+                                {{ selected_categories|join(', ') }}
+                            {% else %}
+                                All Categories
+                            {% endif %}
+                        </span>
+                    </button>
+                    <div class="category-dropdown-menu" id="categoryDropdownMenu">
+                        <div class="category-dropdown-actions">
+                            <button type="button" class="mini-link" id="catSelectAll">Select All</button>
+                            <button type="button" class="mini-link" id="catClearAll">Clear</button>
+                        </div>
+                        <div class="category-dropdown-list">
+                            {% for c in categories %}
+                            <label class="inline-check">
+                                <input type="checkbox" name="cat" value="{{ c }}" {% if c in selected_categories %}checked{% endif %}>
+                                {{ c }}
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </div>
 
                 <select name="rng">
@@ -191,5 +209,58 @@
         </section>
     </div>
 </div>
+
+<script>
+(function() {
+    const root = document.getElementById("categoryDropdown");
+    if (!root) return;
+    const toggle = document.getElementById("categoryDropdownToggle");
+    const menu = document.getElementById("categoryDropdownMenu");
+    const summary = document.getElementById("categoryDropdownSummary");
+    const checkboxes = () => Array.from(root.querySelectorAll('input[type="checkbox"][name="cat"]'));
+    const btnSelectAll = document.getElementById("catSelectAll");
+    const btnClearAll = document.getElementById("catClearAll");
+
+    const updateSummary = () => {
+        const selected = checkboxes().filter(c => c.checked).map(c => c.value);
+        if (!selected.length) {
+            summary.textContent = "All Categories";
+            return;
+        }
+        if (selected.length <= 3) {
+            summary.textContent = selected.join(", ");
+            return;
+        }
+        summary.textContent = `${selected.length} selected`;
+    };
+
+    toggle.addEventListener("click", () => {
+        root.classList.toggle("open");
+    });
+
+    document.addEventListener("click", (e) => {
+        if (!root.contains(e.target)) {
+            root.classList.remove("open");
+        }
+    });
+
+    checkboxes().forEach(cb => cb.addEventListener("change", updateSummary));
+
+    if (btnSelectAll) {
+        btnSelectAll.addEventListener("click", () => {
+            checkboxes().forEach(cb => cb.checked = true);
+            updateSummary();
+        });
+    }
+    if (btnClearAll) {
+        btnClearAll.addEventListener("click", () => {
+            checkboxes().forEach(cb => cb.checked = false);
+            updateSummary();
+        });
+    }
+
+    updateSummary();
+})();
+</script>
 </body>
 </html>
