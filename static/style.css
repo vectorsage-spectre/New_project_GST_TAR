@@ -514,14 +514,15 @@ button:hover {
 
 .presentation-title h2 {
     margin: 0;
-    font-size: 24px;
+    font-size: 34px;
     color: #0f2e64;
+    line-height: 1.15;
 }
 
 .presentation-title p {
     margin: 2px 0 0;
     color: #45618d;
-    font-size: 13px;
+    font-size: 18px;
 }
 
 .presentation-actions {
@@ -544,7 +545,7 @@ button:hover {
     min-width: 0;
     width: 100%;
     table-layout: fixed;
-    font-size: 13px;
+    font-size: 19px;
 }
 
 .presentation-table th {
@@ -553,6 +554,9 @@ button:hover {
     z-index: 2;
     background: #10346f;
     color: #ffffff;
+    font-size: 20px;
+    font-weight: 700;
+    padding: 12px 10px;
 }
 
 .presentation-table th:nth-child(1),
@@ -592,12 +596,15 @@ button:hover {
 
 .presentation-table td {
     background: #ffffff;
+    font-size: 19px;
+    padding: 12px 10px;
 }
 
 .presentation-remarks {
     white-space: pre-wrap;
     word-break: break-word;
-    line-height: 1.35;
+    line-height: 1.45;
+    font-size: 20px;
 }
 
 .chart-grid {
