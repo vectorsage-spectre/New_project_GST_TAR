@@ -420,11 +420,20 @@ def get_filtered_cases(tar_type, user_id):
     q = mapped_case_query(user_id).filter(Case.appeal_status == tar_type)
 
     if query_text:
-        search = f"%{query_text}%"
+        raw_search = query_text
+        search_ilike = f"%{raw_search}%"
+        # Smart text search: ignore case and spaces (e.g., "S P E ctrum" -> "spectrum").
+        compact_search = re.sub(r"\s+", "", raw_search).lower()
+        compact_like = f"%{compact_search}%"
         q = q.filter(
-            (Case.party_name.like(search)) |
-            (Case.gstin_raw.like(search)) |
-            (Case.oio_number.like(search))
+            (Case.party_name.ilike(search_ilike)) |
+            (Case.gstin_raw.ilike(search_ilike)) |
+            (Case.oio_number.ilike(search_ilike)) |
+            (Case.oio_display.ilike(search_ilike)) |
+            (func.replace(func.lower(func.coalesce(Case.party_name, "")), " ", "").like(compact_like)) |
+            (func.replace(func.lower(func.coalesce(Case.gstin_raw, "")), " ", "").like(compact_like)) |
+            (func.replace(func.lower(func.coalesce(Case.oio_number, "")), " ", "").like(compact_like)) |
+            (func.replace(func.lower(func.coalesce(Case.oio_display, "")), " ", "").like(compact_like))
         )
 
     if categories:
