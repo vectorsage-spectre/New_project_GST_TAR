@@ -56,7 +56,7 @@
                         <th>Remarks</th>
                     </tr>
                     {% for c in cases %}
-                        <tr>
+                        <tr class="clickable" onclick="location.href='/disposed-cases/{{ c.id }}'">
                             <td>{{ c.disposed_at|ist_datetime }}</td>
                             <td>{{ c.disposed_by }}</td>
                             <td>{{ c.original_tar_type }}</td>

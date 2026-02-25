@@ -3294,6 +3294,26 @@ def disposed_cases():
     )
 
 
+@app.route("/disposed-cases/<int:id>")
+def disposed_case_detail(id):
+    user = get_session_user()
+    if not user:
+        return redirect("/login")
+
+    dc = db.session.get(DisposedCase, id)
+    if not dc:
+        return redirect("/disposed-cases")
+
+    if user.role != "ADMIN" and dc.disposed_by != user.name:
+        return "Not Allowed ❌"
+
+    return render_template(
+        "disposed_case_detail.html",
+        officer=user.name,
+        disposed_case=dc,
+    )
+
+
 @app.route("/disposed-cases/export")
 def export_disposed_cases():
     user = get_session_user()

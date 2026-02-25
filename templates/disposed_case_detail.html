@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disposed Case Detail</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>Disposed Case Detail | <b>{{ officer }}</b></div>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>Disposed Case Snapshot</h2>
+            <p class="subtitle">Read-only details of archived disposed case.</p>
+        </section>
+
+        <div class="nav">
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/disposed-cases">Disposed Cases</a>
+            <a href="/movement-ledger">Movement Ledger</a>
+            <a href="/audit-trail">Audit Trail</a>
+        </div>
+
+        <section class="table-wrap">
+            <div class="table-container">
+                <table>
+                    <tr><th style="width: 280px;">Field</th><th>Value</th></tr>
+                    <tr><td>Disposed At (IST)</td><td>{{ disposed_case.disposed_at|ist_datetime }}</td></tr>
+                    <tr><td>Disposed By</td><td>{{ disposed_case.disposed_by }}</td></tr>
+                    <tr><td>From TAR</td><td>{{ disposed_case.original_tar_type }}</td></tr>
+                    <tr><td>From Category</td><td>{{ disposed_case.original_recovery_category }}</td></tr>
+                    <tr><td>Reason</td><td>{{ disposed_case.disposed_reason_text or disposed_case.disposed_reason_code or '' }}</td></tr>
+                    <tr><td>Category</td><td>{{ disposed_case.recovery_category }}</td></tr>
+                    <tr><td>Sl.No.</td><td>{{ disposed_case.serial_no }}</td></tr>
+                    <tr><td>Name</td><td>{{ disposed_case.party_name }}</td></tr>
+                    <tr><td>GSTIN</td><td>{{ disposed_case.gstin_raw }}</td></tr>
+                    <tr><td>OIO</td><td>{{ disposed_case.oio_display }}</td></tr>
+                    <tr><td>Issue in brief</td><td>{{ disposed_case.issue_brief }}</td></tr>
+                    <tr><td>Tax OIO</td><td>{{ disposed_case.tax_oio|num0 }}</td></tr>
+                    <tr><td>Interest OIO</td><td>{{ disposed_case.interest_oio|num0 }}</td></tr>
+                    <tr><td>Penalty OIO</td><td>{{ disposed_case.penalty_oio|num0 }}</td></tr>
+                    <tr><td>Total OIO</td><td>{{ disposed_case.total_oio|num0 }}</td></tr>
+                    <tr><td>GST Realised</td><td>{{ disposed_case.gst_realised|num0 }}</td></tr>
+                    <tr><td>Interest Realised</td><td>{{ disposed_case.interest_realised|num0 }}</td></tr>
+                    <tr><td>Penalty Realised</td><td>{{ disposed_case.penalty_realised|num0 }}</td></tr>
+                    <tr><td>Total Realised</td><td>{{ disposed_case.total_realised|num0 }}</td></tr>
+                    <tr><td>Pending GST</td><td>{{ disposed_case.pending_gst|num0 }}</td></tr>
+                    <tr><td>Pending Interest</td><td>{{ disposed_case.pending_interest|num0 }}</td></tr>
+                    <tr><td>Pending Penalty</td><td>{{ disposed_case.pending_penalty|num0 }}</td></tr>
+                    <tr><td>Pending Total</td><td>{{ disposed_case.pending_total|num0 }}</td></tr>
+                    <tr><td>Range</td><td>{{ disposed_case.range_code }}</td></tr>
+                    <tr><td>Internal ID</td><td>{{ disposed_case.internal_id }}</td></tr>
+                    <tr><td>Remarks</td><td><div class="remarks-cell">{{ disposed_case.comments }}</div></td></tr>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+</body>
+</html>
