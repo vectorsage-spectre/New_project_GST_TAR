@@ -761,6 +761,56 @@ def recalc_financials(values):
     return values
 
 
+def normalize_financials_for_record(obj):
+    # Enforce strict financial identities on a model record.
+    # total_oio = tax_oio + interest_oio + penalty_oio
+    # total_realised = gst_realised + interest_realised + penalty_realised
+    # pending_* = oio - realised ; pending_total = sum(pending_*)
+    tax_oio = float(getattr(obj, "tax_oio", None) or 0.0)
+    interest_oio = float(getattr(obj, "interest_oio", None) or 0.0)
+    penalty_oio = float(getattr(obj, "penalty_oio", None) or 0.0)
+
+    gst_realised = float(getattr(obj, "gst_realised", None) or 0.0)
+    interest_realised = float(getattr(obj, "interest_realised", None) or 0.0)
+    penalty_realised = float(getattr(obj, "penalty_realised", None) or 0.0)
+
+    expected_total_oio = tax_oio + interest_oio + penalty_oio
+    expected_total_realised = gst_realised + interest_realised + penalty_realised
+    expected_pending_gst = tax_oio - gst_realised
+    expected_pending_interest = interest_oio - interest_realised
+    expected_pending_penalty = penalty_oio - penalty_realised
+    expected_pending_total = expected_pending_gst + expected_pending_interest + expected_pending_penalty
+
+    changed = False
+    checks = [
+        ("total_oio", expected_total_oio),
+        ("total_realised", expected_total_realised),
+        ("pending_gst", expected_pending_gst),
+        ("pending_interest", expected_pending_interest),
+        ("pending_penalty", expected_pending_penalty),
+        ("pending_total", expected_pending_total),
+    ]
+    for field, expected in checks:
+        current = float(getattr(obj, field, None) or 0.0)
+        if abs(current - expected) > 1e-9:
+            setattr(obj, field, expected)
+            changed = True
+    return changed
+
+
+def reconcile_all_financials():
+    changed = 0
+    for c in Case.query.all():
+        if normalize_financials_for_record(c):
+            changed += 1
+    for d in DisposedCase.query.all():
+        if normalize_financials_for_record(d):
+            changed += 1
+    if changed:
+        db.session.commit()
+    return changed
+
+
 def append_reason_to_remarks(remarks, reason_text):
     rt = (reason_text or "").strip()
     if not rt:
@@ -1340,6 +1390,7 @@ def restore_state_once():
     try:
         ensure_sqlite_columns()
         ensure_postgres_column_sizes()
+        reconcile_all_financials()
         ensure_legacy_assignments_migrated()
         restore_state_snapshot()
         bootstrap_admin_if_needed()
