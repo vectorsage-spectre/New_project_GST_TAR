@@ -295,6 +295,18 @@ def num0(value):
     except ValueError:
         return 0.0
 
+
+def parse_audit_float(value):
+    if value is None:
+        return 0.0
+    s = str(value).strip()
+    if not s or s.lower() in ("none", "nan"):
+        return 0.0
+    try:
+        return float(s)
+    except ValueError:
+        return 0.0
+
 # ---------------- DATABASE CONFIG ----------------
 # Render: set DATABASE_URL (usually Postgres). If absent, fallback to local SQLite in instance/.
 db_url = os.environ.get("DATABASE_URL", "").strip()
@@ -3263,6 +3275,87 @@ def audit_trail():
         role=user.role,
         rows=rows,
         labels=FIELD_LABELS,
+    )
+
+
+@app.route("/recovery-section")
+def recovery_section():
+    user = get_session_user()
+    if not user:
+        return redirect("/login")
+
+    realised_fields = {"gst_realised", "interest_realised", "penalty_realised", "total_realised"}
+    query = CaseChange.query.filter(CaseChange.field_changed.in_(realised_fields))
+    if user.role != "ADMIN":
+        query = query.filter(CaseChange.changed_by == user.name)
+
+    changes = query.order_by(CaseChange.timestamp.desc()).limit(1000).all()
+
+    rows = []
+    total_recovery_change = 0.0
+
+    for ch in changes:
+        old_num = parse_audit_float(ch.old_value)
+        new_num = parse_audit_float(ch.new_value)
+        delta = new_num - old_num
+        if abs(delta) < 1e-9:
+            continue
+
+        case_live = db.session.get(Case, ch.case_id)
+        case_disposed = None
+        if not case_live:
+            case_disposed = (
+                DisposedCase.query
+                .filter_by(original_case_id=ch.case_id)
+                .order_by(DisposedCase.disposed_at.desc(), DisposedCase.id.desc())
+                .first()
+            )
+
+        name = ""
+        gstin = ""
+        oio = ""
+        tar = ""
+        category = ""
+        range_code = ""
+        if case_live:
+            name = case_live.party_name or ""
+            gstin = case_live.gstin_raw or ""
+            oio = case_live.oio_display or ""
+            tar = case_live.appeal_status or ""
+            category = case_live.recovery_category or ""
+            range_code = case_live.range_code or ""
+        elif case_disposed:
+            name = case_disposed.party_name or ""
+            gstin = case_disposed.gstin_raw or ""
+            oio = case_disposed.oio_display or ""
+            tar = case_disposed.appeal_status or case_disposed.original_tar_type or ""
+            category = case_disposed.original_recovery_category or case_disposed.recovery_category or ""
+            range_code = case_disposed.range_code or ""
+
+        rows.append({
+            "timestamp": ch.timestamp,
+            "changed_by": ch.changed_by,
+            "case_id": ch.case_id,
+            "field_changed": ch.field_changed,
+            "old_value": old_num,
+            "new_value": new_num,
+            "delta": delta,
+            "name": name,
+            "gstin": gstin,
+            "oio": oio,
+            "tar": tar,
+            "category": category,
+            "range_code": range_code,
+        })
+        total_recovery_change += delta
+
+    return render_template(
+        "recovery_section.html",
+        officer=user.name,
+        role=user.role,
+        rows=rows,
+        total_recovery_change=total_recovery_change,
+        total_recovery_change_lakhs=float(total_recovery_change / 100000.0),
     )
 
 
