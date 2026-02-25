@@ -603,6 +603,33 @@ def get_month_finalised_end_ist(month_key):
     return row.finalised_at + IST_OFFSET
 
 
+def get_compare_window_utc(compare_month):
+    def month_start_ist(month_key):
+        y, m = month_key.split("-")
+        return datetime(int(y), int(m), 1, 0, 0, 0)
+
+    def next_month_start_ist(month_key):
+        y, m = month_key.split("-")
+        y = int(y)
+        m = int(m)
+        if m == 12:
+            return datetime(y + 1, 1, 1, 0, 0, 0)
+        return datetime(y, m + 1, 1, 0, 0, 0)
+
+    now_ist = datetime.utcnow() + IST_OFFSET
+    compare_start_ist = month_start_ist(compare_month)
+    finalised_end_ist = get_month_finalised_end_ist(compare_month)
+    if finalised_end_ist:
+        compare_end_ist = min(now_ist, finalised_end_ist)
+    else:
+        compare_end_ist = min(now_ist, next_month_start_ist(compare_month))
+
+    window_start_utc = compare_start_ist - IST_OFFSET
+    window_end_utc = compare_end_ist - IST_OFFSET
+    window_label = f"{compare_month} ({compare_start_ist.strftime('%d-%m-%Y')} to {compare_end_ist.strftime('%d-%m-%Y')})"
+    return window_start_utc, window_end_utc, window_label
+
+
 def auto_move_wap_to_a10():
     # Rule: If TAR-2 category WAP and OIO Date is older than 90 days, move to TAR-3 A10.
     # Movements are logged in ledger + standard audit trail.
@@ -1796,34 +1823,7 @@ def tar_report_details(tar_type):
     def lakhs(amount):
         return float(amount / 100000.0)
 
-    # Receipts/Disposals window: compare-month start (IST) to today (IST) if compare_month is current month,
-    # else to compare-month end (IST).
-    def month_start_ist(month_key):
-        y, m = month_key.split("-")
-        return datetime(int(y), int(m), 1, 0, 0, 0)
-
-    def next_month_start_ist(month_key):
-        y, m = month_key.split("-")
-        y = int(y)
-        m = int(m)
-        if m == 12:
-            return datetime(y + 1, 1, 1, 0, 0, 0)
-        return datetime(y, m + 1, 1, 0, 0, 0)
-
-    now_ist = datetime.utcnow() + IST_OFFSET
-    compare_start_ist = month_start_ist(compare_month)
-    finalised_end_ist = get_month_finalised_end_ist(compare_month)
-
-    # If admin has finalised the month, use that as the end of the month reporting window.
-    # Otherwise: if it's current month, use now; else use end-of-month.
-    if finalised_end_ist:
-        compare_end_ist = min(now_ist, finalised_end_ist)
-    else:
-        compare_end_ist = min(now_ist, next_month_start_ist(compare_month))
-
-    window_start_utc = compare_start_ist - IST_OFFSET
-    window_end_utc = compare_end_ist - IST_OFFSET
-    window_label = f"{compare_month} ({compare_start_ist.strftime('%d-%m-%Y')} to {compare_end_ist.strftime('%d-%m-%Y')})"
+    window_start_utc, window_end_utc, window_label = get_compare_window_utc(compare_month)
 
     receipts_rows = (
         db.session.query(
@@ -2114,6 +2114,88 @@ def tar_report_details(tar_type):
         fine_totals=fine_totals,
         detail_rows=detail_rows,
         totals=totals,
+    )
+
+
+@app.route("/tar-report-dashboard/details/<tar_type>/export/<movement_kind>")
+def export_tar_detail_movements(tar_type, movement_kind):
+    user = db.session.get(User, session.get("user_id"))
+    if not user:
+        return redirect("/login")
+
+    tar_type = tar_type.upper()
+    movement_kind = movement_kind.lower().strip()
+    if tar_type not in ["TAR-1", "TAR-2", "TAR-3"]:
+        return redirect("/tar-report-dashboard")
+    if movement_kind not in ["receipts", "disposals"]:
+        return redirect(f"/tar-report-dashboard/details/{tar_type}")
+
+    compare_month = request.args.get("compare_month", datetime.now().strftime("%Y-%m")).strip()
+    if not is_valid_month_key(compare_month):
+        compare_month = datetime.now().strftime("%Y-%m")
+    window_start_utc, window_end_utc, _ = get_compare_window_utc(compare_month)
+
+    q = (
+        db.session.query(CaseMovementLedger)
+        .select_from(CaseMovementLedger)
+        .join(CaseUserMapping, CaseUserMapping.case_id == CaseMovementLedger.case_id)
+        .filter(
+            CaseUserMapping.user_id == user.id,
+            CaseMovementLedger.moved_at >= window_start_utc,
+            CaseMovementLedger.moved_at < window_end_utc,
+        )
+    )
+    if movement_kind == "receipts":
+        q = q.filter(CaseMovementLedger.to_tar_type == tar_type)
+    else:
+        q = q.filter(CaseMovementLedger.from_tar_type == tar_type)
+    rows = q.order_by(CaseMovementLedger.moved_at.desc(), CaseMovementLedger.id.desc()).all()
+
+    export_rows = []
+    for r in rows:
+        export_rows.append({
+            "Moved At (IST)": (r.moved_at + IST_OFFSET).strftime("%d-%m-%Y %H:%M") if r.moved_at else "",
+            "Case ID": r.case_id,
+            "Moved By": r.moved_by or "",
+            "Source": r.source or "",
+            "From TAR": r.from_tar_type or "",
+            "From Category": r.from_recovery_category or "",
+            "To TAR": r.to_tar_type or "",
+            "To Category": r.to_recovery_category or "",
+            "Reason Code": r.reason_code or "",
+            "Reason Text": r.reason_text or "",
+            "Pending Snapshot (₹)": float(r.pending_total_snapshot or 0.0),
+            "Total OIO Snapshot (₹)": float(r.total_oio_snapshot or 0.0),
+            "Note": r.note or "",
+        })
+
+    df = pd.DataFrame(export_rows, columns=[
+        "Moved At (IST)",
+        "Case ID",
+        "Moved By",
+        "Source",
+        "From TAR",
+        "From Category",
+        "To TAR",
+        "To Category",
+        "Reason Code",
+        "Reason Text",
+        "Pending Snapshot (₹)",
+        "Total OIO Snapshot (₹)",
+        "Note",
+    ])
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        sheet_name = "Receipts" if movement_kind == "receipts" else "Disposals"
+        df.to_excel(writer, index=False, sheet_name=sheet_name)
+    output.seek(0)
+
+    filename = f"{tar_type.lower()}_{movement_kind}_{compare_month}.xlsx"
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
 
@@ -3209,6 +3291,60 @@ def disposed_cases():
         cases=cases,
         total_count=int(total_count or 0),
         total_pending_lakhs=float((total_pending or 0.0) / 100000.0),
+    )
+
+
+@app.route("/disposed-cases/export")
+def export_disposed_cases():
+    user = get_session_user()
+    if not user:
+        return redirect("/login")
+
+    q = DisposedCase.query
+    if user.role != "ADMIN":
+        q = q.filter(DisposedCase.disposed_by == user.name)
+    rows = q.order_by(DisposedCase.disposed_at.desc(), DisposedCase.id.desc()).all()
+
+    export_rows = []
+    for c in rows:
+        export_rows.append({
+            "Disposed At (IST)": (c.disposed_at + IST_OFFSET).strftime("%d-%m-%Y %H:%M") if c.disposed_at else "",
+            "Disposed By": c.disposed_by or "",
+            "From TAR": c.original_tar_type or "",
+            "From Category": c.original_recovery_category or "",
+            "Reason": c.disposed_reason_text or c.disposed_reason_code or "",
+            "GSTIN": c.gstin_raw or "",
+            "Name": c.party_name or "",
+            "OIO": c.oio_display or "",
+            "Pending Total (₹)": float(c.pending_total or 0.0),
+            "Range": c.range_code or "",
+            "Remarks": c.comments or "",
+        })
+
+    df = pd.DataFrame(export_rows, columns=[
+        "Disposed At (IST)",
+        "Disposed By",
+        "From TAR",
+        "From Category",
+        "Reason",
+        "GSTIN",
+        "Name",
+        "OIO",
+        "Pending Total (₹)",
+        "Range",
+        "Remarks",
+    ])
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Disposed Cases")
+    output.seek(0)
+
+    filename = f"disposed_cases_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
 
