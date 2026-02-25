@@ -43,24 +43,28 @@
                     placeholder="Search GSTIN / Name / OIO"
                     value="{{ request.args.get('q','') }}">
 
-                <input type="hidden" name="cat" value="{{ request.args.get('cat','') }}">
+                {% for c in selected_categories %}
+                <input type="hidden" name="cat" value="{{ c }}">
+                {% endfor %}
                 <input type="hidden" name="rng" value="{{ request.args.get('rng','') }}">
                 <input type="hidden" name="sort" value="{{ request.args.get('sort','') }}">
                 <input type="hidden" name="order" value="{{ request.args.get('order','') }}">
 
                 <button type="submit">Search</button>
-                <a class="metric-link" href="/live/{{ tar_type }}?cat={{ request.args.get('cat','') }}&rng={{ request.args.get('rng','') }}&sort={{ request.args.get('sort','') }}&order={{ request.args.get('order','desc') }}">Clear Search</a>
+                <a class="metric-link" href="{{ clear_search_url }}">Clear Search</a>
             </form>
 
             <form method="get" class="bar">
                 <b>Filter</b>
 
-                <select name="cat">
-                    <option value="">All Categories</option>
+                <div class="category-check-grid">
                     {% for c in categories %}
-                        <option value="{{c}}" {% if request.args.get('cat')==c %}selected{% endif %}>{{c}}</option>
+                    <label class="inline-check">
+                        <input type="checkbox" name="cat" value="{{ c }}" {% if c in selected_categories %}checked{% endif %}>
+                        {{ c }}
+                    </label>
                     {% endfor %}
-                </select>
+                </div>
 
                 <select name="rng">
                     <option value="">All Ranges</option>
@@ -74,6 +78,7 @@
                 <input type="hidden" name="order" value="{{ request.args.get('order','') }}">
 
                 <button type="submit">Apply Filter</button>
+                <a class="metric-link" href="/live/{{ tar_type }}?q={{ request.args.get('q','') }}&sort={{ request.args.get('sort','') }}&order={{ request.args.get('order','desc') }}">Clear Filter</a>
             </form>
 
             <form method="get" class="bar">
@@ -97,7 +102,9 @@
                 </select>
 
                 <input type="hidden" name="q" value="{{ request.args.get('q','') }}">
-                <input type="hidden" name="cat" value="{{ request.args.get('cat','') }}">
+                {% for c in selected_categories %}
+                <input type="hidden" name="cat" value="{{ c }}">
+                {% endfor %}
                 <input type="hidden" name="rng" value="{{ request.args.get('rng','') }}">
 
                 <button type="submit">Sort</button>

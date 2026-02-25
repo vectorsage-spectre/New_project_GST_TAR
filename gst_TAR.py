@@ -263,6 +263,7 @@ import json
 import re
 import html
 import shutil
+from urllib.parse import urlencode
 
 
 # ---------------- APP SETUP ----------------
@@ -396,7 +397,12 @@ def ensure_legacy_assignments_migrated():
 
 def get_filtered_cases(tar_type, user_id):
     query_text = request.args.get("q", "").strip()
-    category = request.args.get("cat", "").strip()
+    categories = [c.strip() for c in request.args.getlist("cat") if (c or "").strip()]
+    if not categories:
+        raw_cat = request.args.get("cat", "").strip()
+        if raw_cat:
+            categories = [c.strip() for c in raw_cat.split(",") if c.strip()]
+    categories = [c for c in categories if c in TAR_CATEGORY_MAP.get(tar_type, [])]
     rng = request.args.get("rng", "").strip()
 
     q = mapped_case_query(user_id).filter(Case.appeal_status == tar_type)
@@ -409,8 +415,8 @@ def get_filtered_cases(tar_type, user_id):
             (Case.oio_number.like(search))
         )
 
-    if category:
-        q = q.filter(Case.recovery_category == category)
+    if categories:
+        q = q.filter(Case.recovery_category.in_(categories))
 
     if rng:
         q = q.filter(Case.range_code == rng)
@@ -1393,6 +1399,13 @@ def live_tar(tar_type):
         return redirect("/login")
 
     tar_type = tar_type.upper()
+    selected_categories = [c.strip() for c in request.args.getlist("cat") if (c or "").strip()]
+    if not selected_categories:
+        raw_cat = request.args.get("cat", "").strip()
+        if raw_cat:
+            selected_categories = [c.strip() for c in raw_cat.split(",") if c.strip()]
+    selected_categories = [c for c in selected_categories if c in TAR_CATEGORY_MAP.get(tar_type, [])]
+
     cases = get_filtered_cases(tar_type, user.id)
 
     total_count = (
@@ -1409,17 +1422,46 @@ def live_tar(tar_type):
     filtered_count = len(cases)
     has_active_filters = any([
         request.args.get("q", "").strip(),
-        request.args.get("cat", "").strip(),
+        len(selected_categories) > 0,
         request.args.get("rng", "").strip()
     ])
+
+    rng = request.args.get("rng", "").strip()
+    sort_by = request.args.get("sort", "").strip()
+    order = request.args.get("order", "desc").strip() or "desc"
+    q_text = request.args.get("q", "").strip()
+
+    base_params = {}
+    if selected_categories:
+        base_params["cat"] = selected_categories
+    if rng:
+        base_params["rng"] = rng
+    if sort_by:
+        base_params["sort"] = sort_by
+    if order:
+        base_params["order"] = order
+
+    search_params = dict(base_params)
+    if q_text:
+        search_params["q"] = q_text
+
+    export_url = f"/live/{tar_type}/export"
+    if search_params:
+        export_url += "?" + urlencode(search_params, doseq=True)
+
+    clear_search_url = f"/live/{tar_type}"
+    if base_params:
+        clear_search_url += "?" + urlencode(base_params, doseq=True)
 
     return render_template(
         "live_tar.html",
         cases=cases,
         officer=user.name,
         tar_type=tar_type,
-        export_url=url_for("export_live_cases", tar_type=tar_type, **request.args.to_dict()),
+        export_url=export_url,
+        clear_search_url=clear_search_url,
         categories=TAR_CATEGORY_MAP.get(tar_type, []),
+        selected_categories=selected_categories,
         total_count=total_count,
         filtered_count=filtered_count,
         has_active_filters=has_active_filters
