@@ -3293,8 +3293,9 @@ def recovery_section():
     if not user:
         return redirect("/login")
 
-    realised_fields = {"gst_realised", "interest_realised", "penalty_realised", "total_realised"}
-    query = CaseChange.query.filter(CaseChange.field_changed.in_(realised_fields))
+    # Recovery is tracked only through total_realised changes.
+    # This avoids double counting from GST/interest/penalty component changes in same save.
+    query = CaseChange.query.filter(CaseChange.field_changed == "total_realised")
     if user.role != "ADMIN":
         query = query.filter(CaseChange.changed_by == user.name)
 
@@ -3302,6 +3303,9 @@ def recovery_section():
 
     rows = []
     total_recovery_change = 0.0
+    seen_event_keys = set()
+    latest_total_realised_by_case = {}
+    affected_case_ids = set()
 
     for ch in changes:
         old_num = parse_audit_float(ch.old_value)
@@ -3309,6 +3313,17 @@ def recovery_section():
         delta = new_num - old_num
         if abs(delta) < 1e-9:
             continue
+
+        event_key = (
+            int(ch.case_id or 0),
+            ch.timestamp.isoformat() if ch.timestamp else "",
+            str(ch.changed_by or ""),
+            float(old_num),
+            float(new_num),
+        )
+        if event_key in seen_event_keys:
+            continue
+        seen_event_keys.add(event_key)
 
         case_live = db.session.get(Case, ch.case_id)
         case_disposed = None
@@ -3357,6 +3372,9 @@ def recovery_section():
             "range_code": range_code,
         })
         total_recovery_change += delta
+        affected_case_ids.add(ch.case_id)
+        if ch.case_id not in latest_total_realised_by_case:
+            latest_total_realised_by_case[ch.case_id] = new_num
 
     return render_template(
         "recovery_section.html",
@@ -3365,6 +3383,9 @@ def recovery_section():
         rows=rows,
         total_recovery_change=total_recovery_change,
         total_recovery_change_lakhs=float(total_recovery_change / 100000.0),
+        affected_case_count=len(affected_case_ids),
+        total_realised_across_cases=float(sum(latest_total_realised_by_case.values())),
+        total_realised_across_cases_lakhs=float(sum(latest_total_realised_by_case.values()) / 100000.0),
     )
 
 

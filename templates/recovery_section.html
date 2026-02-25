@@ -35,9 +35,10 @@
 
         <section class="controls">
             <div class="bar">
-                <span class="badge">Total Changes: {{ rows|length }}</span>
-                <span class="badge">Net Recovery Change (₹): ₹ {{ "{:,.2f}".format(total_recovery_change) }}</span>
-                <span class="badge">Net Recovery Change (₹ Lakhs): ₹ {{ "{:,.2f}".format(total_recovery_change_lakhs) }}</span>
+                <span class="badge">Affected Cases: {{ affected_case_count }}</span>
+                <span class="badge">Total Realised Across Cases (₹): ₹ {{ "{:,.2f}".format(total_realised_across_cases) }}</span>
+                <span class="badge">Total Realised Across Cases (₹ Lakhs): ₹ {{ "{:,.2f}".format(total_realised_across_cases_lakhs) }}</span>
+                <span class="badge">Net Change in Total Realised (₹): ₹ {{ "{:,.2f}".format(total_recovery_change) }}</span>
             </div>
         </section>
 
@@ -54,7 +55,6 @@
                         <th>Name</th>
                         <th>GSTIN</th>
                         <th>OIO</th>
-                        <th>Realised Field</th>
                         <th>Old Value (₹)</th>
                         <th>New Value (₹)</th>
                         <th>Recovery Change (₹)</th>
@@ -70,7 +70,6 @@
                         <td>{{ r.name }}</td>
                         <td>{{ r.gstin }}</td>
                         <td>{{ r.oio }}</td>
-                        <td>{{ r.field_changed }}</td>
                         <td>{{ "{:,.2f}".format(r.old_value) }}</td>
                         <td>{{ "{:,.2f}".format(r.new_value) }}</td>
                         <td><b>₹ {{ "{:,.2f}".format(r.delta) }}</b></td>
