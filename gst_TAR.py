@@ -315,6 +315,54 @@ def is_paid_in_full_reason(reason_code, reason_text):
         return True
     return ("paid in full" in rt) or ("arrear realised" in rt) or ("arrears realised" in rt)
 
+
+def extract_amount_from_text(text):
+    s = (text or "").strip()
+    if not s:
+        return 0.0
+    # Matches ₹12,456/- | Rs. 12,456/- | Rs 12,456 | INR 12,456 | 12,456
+    m = re.search(r"(?i)(?:₹|rs\.?|inr)?\s*([0-9][0-9,]*(?:\.\d+)?)\s*(?:/-)?", s)
+    if not m:
+        return 0.0
+    num = m.group(1).replace(",", "")
+    try:
+        return float(num)
+    except ValueError:
+        return 0.0
+
+
+def extract_tar3_predeposit_from_comments(comments):
+    txt = (comments or "")
+    if not txt:
+        return 0.0
+    # Trigger only if comment contains predeposit variants.
+    if not re.search(r"(?i)pre[\s-]?deposit", txt):
+        return 0.0
+    # Prefer number after "predeposit amount paid" / "predeposit paid".
+    m = re.search(
+        r"(?i)pre[\s-]?deposit(?:\s+amount)?\s+paid[^0-9₹r]{0,40}(?:₹|rs\.?|inr)?\s*([0-9][0-9,]*(?:\.\d+)?)",
+        txt
+    )
+    if m:
+        try:
+            return float(m.group(1).replace(",", ""))
+        except ValueError:
+            return 0.0
+
+    # Fallback: first amount appearing after the first predeposit keyword.
+    key = re.search(r"(?i)pre[\s-]?deposit", txt)
+    if not key:
+        return 0.0
+    tail = txt[key.end(): key.end() + 160]
+    return extract_amount_from_text(tail)
+
+
+def get_predeposit_amount_for_case(case_obj):
+    base = extract_amount_from_text(case_obj.predeposit_details)
+    if case_obj.appeal_status == "TAR-3" and base <= 0.0:
+        base = extract_tar3_predeposit_from_comments(case_obj.comments)
+    return float(base or 0.0)
+
 # ---------------- DATABASE CONFIG ----------------
 # Render: set DATABASE_URL (usually Postgres). If absent, fallback to local SQLite in instance/.
 db_url = os.environ.get("DATABASE_URL", "").strip()
@@ -1793,6 +1841,54 @@ def range_wise_details():
         officer=user.name,
         chart_data=chart_data,
         a_categories=TAR_CATEGORY_MAP["TAR-3"],
+    )
+
+
+@app.route("/predeposit/<tar_type>")
+def predeposit_cases(tar_type):
+    user = db.session.get(User, session.get("user_id"))
+    if not user:
+        return redirect("/login")
+
+    tar_type = tar_type.upper()
+    if tar_type not in {"TAR-1", "TAR-3"}:
+        return redirect("/tar-report-dashboard")
+
+    all_cases = (
+        mapped_case_query(user.id)
+        .filter(Case.appeal_status == tar_type)
+        .order_by(Case.pending_total.desc())
+        .all()
+    )
+
+    rows = []
+    total_predeposit = 0.0
+    for c in all_cases:
+        pre_amt = get_predeposit_amount_for_case(c)
+        if pre_amt <= 0.0:
+            continue
+        rows.append({
+            "id": c.id,
+            "recovery_category": c.recovery_category or "",
+            "party_name": c.party_name or "",
+            "gstin_raw": c.gstin_raw or "",
+            "oio_display": c.oio_display or "",
+            "issue_brief": c.issue_brief or "",
+            "pending_total": float(c.pending_total or 0.0),
+            "predeposit_amount": pre_amt,
+            "predeposit_details": c.predeposit_details or "",
+            "range_code": c.range_code or "",
+        })
+        total_predeposit += pre_amt
+
+    return render_template(
+        "predeposit_cases.html",
+        officer=user.name,
+        tar_type=tar_type,
+        rows=rows,
+        total_count=len(rows),
+        total_predeposit=total_predeposit,
+        total_predeposit_lakhs=float(total_predeposit / 100000.0),
     )
 
 

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predeposit {{ tar_type }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>Predeposit {{ tar_type }} | <b>{{ officer }}</b></div>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>Predeposit {{ tar_type }} Cases</h2>
+            <p class="subtitle">Shows only mapped {{ tar_type }} cases where predeposit amount is available and greater than zero.</p>
+        </section>
+
+        <div class="nav">
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/predeposit/TAR-1">Predeposit-TAR-1</a>
+            <a href="/predeposit/TAR-3">Predeposit-TAR-3</a>
+            <a href="/live/{{ tar_type }}">Open {{ tar_type }} Case Lists</a>
+        </div>
+
+        <section class="controls">
+            <div class="bar">
+                <span class="badge">Cases: {{ total_count }}</span>
+                <span class="badge">Total Predeposit (₹): ₹ {{ "{:,.2f}".format(total_predeposit) }}</span>
+                <span class="badge">Total Predeposit (₹ Lakhs): ₹ {{ "{:,.2f}".format(total_predeposit_lakhs) }}</span>
+            </div>
+        </section>
+
+        <section class="table-wrap">
+            <div class="table-container">
+                <table>
+                    <tr>
+                        <th>Category</th>
+                        <th>Name</th>
+                        <th>GSTIN</th>
+                        <th>OIO</th>
+                        <th>Issue</th>
+                        <th>Predeposit Amount (₹)</th>
+                        <th>Predeposit Source Text</th>
+                        <th>Pending Total (₹)</th>
+                        <th>Range</th>
+                    </tr>
+                    {% for r in rows %}
+                    <tr class="clickable" onclick="location.href='/case/{{ r.id }}?from_page={{ request.full_path|urlencode }}'">
+                        <td>{{ r.recovery_category }}</td>
+                        <td>{{ r.party_name }}</td>
+                        <td>{{ r.gstin_raw }}</td>
+                        <td>{{ r.oio_display }}</td>
+                        <td>{{ r.issue_brief }}</td>
+                        <td><b>₹ {{ "{:,.2f}".format(r.predeposit_amount) }}</b></td>
+                        <td>{{ r.predeposit_details }}</td>
+                        <td>{{ "{:,.2f}".format(r.pending_total) }}</td>
+                        <td>{{ r.range_code }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+                {% if not rows %}
+                <div class="empty-state">No predeposit cases found for {{ tar_type }}.</div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+</body>
+</html>
