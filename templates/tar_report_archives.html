@@ -52,14 +52,14 @@
                                     <td>{{ cat.tar_type }}</td>
                                     <td>{{ cat.recovery_category }}</td>
                                     <td>{{ cat.count }}</td>
-                                    <td>₹ {{ "{:,.2f}".format(cat.pending_lakhs) }}</td>
+                                    <td>₹ {{ (cat.pending_lakhs)|inr }}</td>
                                 </tr>
                             {% endfor %}
                             <tr class="totals-row">
                                 <td><b>{{ row.month }} Total</b></td>
                                 <td colspan="2"></td>
                                 <td><b>{{ row.final_count }}</b></td>
-                                <td><b>₹ {{ "{:,.2f}".format(row.final_pending_lakhs) }}</b></td>
+                                <td><b>₹ {{ (row.final_pending_lakhs)|inr }}</b></td>
                             </tr>
                         </table>
                     </div>

@@ -47,18 +47,18 @@
                     <tr><td>GSTIN</td><td>{{ disposed_case.gstin_raw }}</td></tr>
                     <tr><td>OIO</td><td>{{ disposed_case.oio_display }}</td></tr>
                     <tr><td>Issue in brief</td><td>{{ disposed_case.issue_brief }}</td></tr>
-                    <tr><td>Tax OIO</td><td>{{ disposed_case.tax_oio|num0 }}</td></tr>
-                    <tr><td>Interest OIO</td><td>{{ disposed_case.interest_oio|num0 }}</td></tr>
-                    <tr><td>Penalty OIO</td><td>{{ disposed_case.penalty_oio|num0 }}</td></tr>
-                    <tr><td>Total OIO</td><td>{{ disposed_case.total_oio|num0 }}</td></tr>
-                    <tr><td>GST Realised</td><td>{{ disposed_case.gst_realised|num0 }}</td></tr>
-                    <tr><td>Interest Realised</td><td>{{ disposed_case.interest_realised|num0 }}</td></tr>
-                    <tr><td>Penalty Realised</td><td>{{ disposed_case.penalty_realised|num0 }}</td></tr>
-                    <tr><td>Total Realised</td><td>{{ disposed_case.total_realised|num0 }}</td></tr>
-                    <tr><td>Pending GST</td><td>{{ disposed_case.pending_gst|num0 }}</td></tr>
-                    <tr><td>Pending Interest</td><td>{{ disposed_case.pending_interest|num0 }}</td></tr>
-                    <tr><td>Pending Penalty</td><td>{{ disposed_case.pending_penalty|num0 }}</td></tr>
-                    <tr><td>Pending Total</td><td>{{ disposed_case.pending_total|num0 }}</td></tr>
+                    <tr><td>Tax OIO</td><td>{{ disposed_case.tax_oio|inr }}</td></tr>
+                    <tr><td>Interest OIO</td><td>{{ disposed_case.interest_oio|inr }}</td></tr>
+                    <tr><td>Penalty OIO</td><td>{{ disposed_case.penalty_oio|inr }}</td></tr>
+                    <tr><td>Total OIO</td><td>{{ disposed_case.total_oio|inr }}</td></tr>
+                    <tr><td>GST Realised</td><td>{{ disposed_case.gst_realised|inr }}</td></tr>
+                    <tr><td>Interest Realised</td><td>{{ disposed_case.interest_realised|inr }}</td></tr>
+                    <tr><td>Penalty Realised</td><td>{{ disposed_case.penalty_realised|inr }}</td></tr>
+                    <tr><td>Total Realised</td><td>{{ disposed_case.total_realised|inr }}</td></tr>
+                    <tr><td>Pending GST</td><td>{{ disposed_case.pending_gst|inr }}</td></tr>
+                    <tr><td>Pending Interest</td><td>{{ disposed_case.pending_interest|inr }}</td></tr>
+                    <tr><td>Pending Penalty</td><td>{{ disposed_case.pending_penalty|inr }}</td></tr>
+                    <tr><td>Pending Total</td><td>{{ disposed_case.pending_total|inr }}</td></tr>
                     <tr><td>Range</td><td>{{ disposed_case.range_code }}</td></tr>
                     <tr><td>Internal ID</td><td>{{ disposed_case.internal_id }}</td></tr>
                     <tr><td>Remarks</td><td><div class="remarks-cell">{{ disposed_case.comments }}</div></td></tr>

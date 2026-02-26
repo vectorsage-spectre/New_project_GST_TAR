@@ -296,6 +296,41 @@ def num0(value):
         return 0.0
 
 
+def format_indian_number(value, decimals=2):
+    n = float(value or 0.0)
+    sign = "-" if n < 0 else ""
+    n = abs(n)
+    int_part = int(n)
+    frac_part = round(n - int_part, int(decimals or 0))
+    frac_txt = f"{frac_part:.{int(decimals or 0)}f}".split(".")[1] if int(decimals or 0) > 0 else ""
+
+    s = str(int_part)
+    if len(s) > 3:
+        last3 = s[-3:]
+        lead = s[:-3]
+        groups = []
+        while len(lead) > 2:
+            groups.insert(0, lead[-2:])
+            lead = lead[:-2]
+        if lead:
+            groups.insert(0, lead)
+        s = ",".join(groups + [last3])
+
+    if int(decimals or 0) > 0:
+        return f"{sign}{s}.{frac_txt}"
+    return f"{sign}{s}"
+
+
+@app.template_filter("inr")
+def inr(value, decimals=2):
+    return format_indian_number(num0(value), decimals=decimals)
+
+
+@app.template_filter("inr_lakhs")
+def inr_lakhs(value, decimals=2):
+    return format_indian_number(num0(value) / 100000.0, decimals=decimals)
+
+
 def parse_audit_float(value):
     if value is None:
         return 0.0

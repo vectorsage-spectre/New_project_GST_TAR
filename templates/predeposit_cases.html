@@ -35,8 +35,8 @@
         <section class="controls">
             <div class="bar">
                 <span class="badge">Cases: {{ total_count }}</span>
-                <span class="badge">Total Predeposit (₹): ₹ {{ "{:,.2f}".format(total_predeposit) }}</span>
-                <span class="badge">Total Predeposit (₹ Lakhs): ₹ {{ "{:,.2f}".format(total_predeposit_lakhs) }}</span>
+                <span class="badge">Total Predeposit (₹): ₹ {{ (total_predeposit)|inr }}</span>
+                <span class="badge">Total Predeposit (₹ Lakhs): ₹ {{ (total_predeposit_lakhs)|inr }}</span>
             </div>
         </section>
 
@@ -61,9 +61,9 @@
                         <td>{{ r.gstin_raw }}</td>
                         <td>{{ r.oio_display }}</td>
                         <td>{{ r.issue_brief }}</td>
-                        <td><b>₹ {{ "{:,.2f}".format(r.predeposit_amount) }}</b></td>
+                        <td><b>₹ {{ (r.predeposit_amount)|inr }}</b></td>
                         <td>{{ r.predeposit_details }}</td>
-                        <td>{{ "{:,.2f}".format(r.pending_total) }}</td>
+                        <td>{{ (r.pending_total)|inr }}</td>
                         <td>{{ r.range_code }}</td>
                     </tr>
                     {% endfor %}

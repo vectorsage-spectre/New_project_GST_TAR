@@ -43,7 +43,7 @@
                         <td>{{ case.party_name }}</td>
                         <td>{{ case.oio_display }}</td>
                         <td>{{ case.issue_brief }}</td>
-                        <td>₹ {{ "{:,.2f}".format((case.pending_total|num0) / 100000) }}</td>
+                        <td>₹ {{ case.pending_total|inr_lakhs }}</td>
                         <td><div class="presentation-remarks">{{ case.comments }}</div></td>
                         <td>{{ case.range_code }}</td>
                     </tr>

@@ -36,9 +36,9 @@
         <section class="controls">
             <div class="bar">
                 <span class="badge">Affected Cases: {{ affected_case_count }}</span>
-                <span class="badge">Total Realised Across Cases (₹): ₹ {{ "{:,.2f}".format(total_realised_across_cases) }}</span>
-                <span class="badge">Total Realised Across Cases (₹ Lakhs): ₹ {{ "{:,.2f}".format(total_realised_across_cases_lakhs) }}</span>
-                <span class="badge">Net Change in Total Realised (₹): ₹ {{ "{:,.2f}".format(total_recovery_change) }}</span>
+                <span class="badge">Total Realised Across Cases (₹): ₹ {{ (total_realised_across_cases)|inr }}</span>
+                <span class="badge">Total Realised Across Cases (₹ Lakhs): ₹ {{ (total_realised_across_cases_lakhs)|inr }}</span>
+                <span class="badge">Net Change in Total Realised (₹): ₹ {{ (total_recovery_change)|inr }}</span>
             </div>
         </section>
 
@@ -70,9 +70,9 @@
                         <td>{{ r.name }}</td>
                         <td>{{ r.gstin }}</td>
                         <td>{{ r.oio }}</td>
-                        <td>{{ "{:,.2f}".format(r.old_value) }}</td>
-                        <td>{{ "{:,.2f}".format(r.new_value) }}</td>
-                        <td><b>₹ {{ "{:,.2f}".format(r.delta) }}</b></td>
+                        <td>{{ (r.old_value)|inr }}</td>
+                        <td>{{ (r.new_value)|inr }}</td>
+                        <td><b>₹ {{ (r.delta)|inr }}</b></td>
                     </tr>
                     {% endfor %}
                 </table>

@@ -73,7 +73,7 @@
                                 <td><b>{{ r.recovery_category }}</b></td>
                                 {% for c in fine_cols %}
                                     <td>{{ r[c.key].count }}</td>
-                                    <td>₹ {{ "{:,.2f}".format(r[c.key].pending_lakhs) }}</td>
+                                    <td>₹ {{ (r[c.key].pending_lakhs)|inr }}</td>
                                 {% endfor %}
                             </tr>
                         {% endfor %}
@@ -81,7 +81,7 @@
                             <td><b>Total</b></td>
                             {% for c in fine_cols %}
                                 <td><b>{{ fine_totals[c.key].count }}</b></td>
-                                <td><b>₹ {{ "{:,.2f}".format(fine_totals[c.key].pending_lakhs) }}</b></td>
+                                <td><b>₹ {{ (fine_totals[c.key].pending_lakhs)|inr }}</b></td>
                             {% endfor %}
                         </tr>
                     </table>
@@ -110,29 +110,29 @@
                         <tr>
                             <td>{{ row.recovery_category }}</td>
                             <td>{{ row.base_count }}</td>
-                            <td>₹ {{ "{:,.2f}".format(row.base_pending_lakhs) }}</td>
+                            <td>₹ {{ (row.base_pending_lakhs)|inr }}</td>
                             <td>{{ row.compare_count }}</td>
-                            <td>₹ {{ "{:,.2f}".format(row.compare_pending_lakhs) }}</td>
+                            <td>₹ {{ (row.compare_pending_lakhs)|inr }}</td>
                             <td>{{ row.change_count }}</td>
-                            <td>₹ {{ "{:,.2f}".format(row.change_pending_lakhs) }}</td>
+                            <td>₹ {{ (row.change_pending_lakhs)|inr }}</td>
                             <td>{{ row.receipt_count }}</td>
-                            <td>₹ {{ "{:,.2f}".format(row.receipt_pending_lakhs) }}</td>
+                            <td>₹ {{ (row.receipt_pending_lakhs)|inr }}</td>
                             <td>{{ row.disposal_count }}</td>
-                            <td>₹ {{ "{:,.2f}".format(row.disposal_pending_lakhs) }}</td>
+                            <td>₹ {{ (row.disposal_pending_lakhs)|inr }}</td>
                         </tr>
                     {% endfor %}
                     <tr class="totals-row">
                         <td><b>Total</b></td>
                         <td><b>{{ totals.base_count }}</b></td>
-                        <td><b>₹ {{ "{:,.2f}".format(totals.base_pending_lakhs) }}</b></td>
+                        <td><b>₹ {{ (totals.base_pending_lakhs)|inr }}</b></td>
                         <td><b>{{ totals.compare_count }}</b></td>
-                        <td><b>₹ {{ "{:,.2f}".format(totals.compare_pending_lakhs) }}</b></td>
+                        <td><b>₹ {{ (totals.compare_pending_lakhs)|inr }}</b></td>
                         <td><b>{{ totals.change_count }}</b></td>
-                        <td><b>₹ {{ "{:,.2f}".format(totals.change_pending_lakhs) }}</b></td>
+                        <td><b>₹ {{ (totals.change_pending_lakhs)|inr }}</b></td>
                         <td><b>{{ totals.receipt_count or 0 }}</b></td>
-                        <td><b>₹ {{ "{:,.2f}".format(totals.receipt_pending_lakhs or 0.0) }}</b></td>
+                        <td><b>₹ {{ (totals.receipt_pending_lakhs or 0.0)|inr }}</b></td>
                         <td><b>{{ totals.disposal_count or 0 }}</b></td>
-                        <td><b>₹ {{ "{:,.2f}".format(totals.disposal_pending_lakhs or 0.0) }}</b></td>
+                        <td><b>₹ {{ (totals.disposal_pending_lakhs or 0.0)|inr }}</b></td>
                     </tr>
                 </table>
                 {% if not detail_rows %}

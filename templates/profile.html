@@ -56,7 +56,7 @@
                                 <td>{{ cat }}</td>
                                 <td>{{ category_details.get(cat, "") }}</td>
                                 <td>{{ count }}</td>
-                                <td>₹ {{ "{:,.2f}".format((pending or 0) / 100000) }}</td>
+                                <td>₹ {{ ((pending or 0) / 100000)|inr }}</td>
                             </tr>
                         {% endfor %}
                     </table>
@@ -95,7 +95,7 @@
                                 <tr>
                                     <td>{{ tar }}</td>
                                     <td>{{ count }}</td>
-                                    <td>₹ {{ "{:,.2f}".format((pending or 0) / 100000) }}</td>
+                                    <td>₹ {{ ((pending or 0) / 100000)|inr }}</td>
                                 </tr>
                             {% endfor %}
                         </table>
@@ -147,7 +147,7 @@
                                     <td>{{ (r[0] or '-') ~ ' / ' ~ (r[1] or '-') }}</td>
                                     <td>{{ (r[2] or '-') ~ ' / ' ~ (r[3] or '-') }}</td>
                                     <td>{{ r[4] }}</td>
-                                    <td>₹ {{ "{:,.2f}".format((r[5] or 0) / 100000) }}</td>
+                                    <td>₹ {{ ((r[5] or 0) / 100000)|inr }}</td>
                                 </tr>
                             {% endfor %}
                         </table>
@@ -179,7 +179,7 @@
                                     <td>{{ m.source }}</td>
                                     <td>{{ (m.from_tar_type or '-') ~ ' / ' ~ (m.from_recovery_category or '-') }}</td>
                                     <td>{{ (m.to_tar_type or '-') ~ ' / ' ~ (m.to_recovery_category or '-') }}</td>
-                                    <td>{{ m.pending_total_snapshot|num0 }}</td>
+                                    <td>{{ m.pending_total_snapshot|inr }}</td>
                                 </tr>
                             {% endfor %}
                         </table>

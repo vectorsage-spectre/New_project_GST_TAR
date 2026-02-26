@@ -67,7 +67,7 @@
                         </div>
                         <div class="metric-line">
                             <span>Pending Total (₹ Lakhs)</span>
-                            <strong>₹ {{ "{:,.2f}".format(row.pending_total_lakhs) }}</strong>
+                            <strong>₹ {{ (row.pending_total_lakhs)|inr }}</strong>
                         </div>
                         <div class="metric-actions">
                             <a class="metric-link" href="/live/{{ row.tar_type }}">Open {{ row.tar_type }} Case Lists</a>
@@ -92,7 +92,7 @@
                                 <td>{{ row.tar_type }}</td>
                                 <td>{{ row.recovery_category }}</td>
                                 <td>{{ row.case_count }}</td>
-                                <td>₹ {{ "{:,.2f}".format(row.pending_total_lakhs) }}</td>
+                                <td>₹ {{ (row.pending_total_lakhs)|inr }}</td>
                             </tr>
                         {% endfor %}
                     </table>
@@ -115,7 +115,7 @@
                             <tr>
                                 <td>{{ row.tar_type }}</td>
                                 <td>{{ row.final_count }}</td>
-                                <td>₹ {{ "{:,.2f}".format(row.final_pending_oio_lakhs) }}</td>
+                                <td>₹ {{ (row.final_pending_oio_lakhs)|inr }}</td>
                             </tr>
                         {% endfor %}
                     </table>

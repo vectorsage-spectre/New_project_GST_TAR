@@ -63,8 +63,8 @@
             </form>
 
             <div class="bar">
-                <span class="badge">IN: {{ summary.in_count }} cases | Pending ₹ {{ "{:,.2f}".format(summary.in_pending_lakhs) }} Lakhs</span>
-                <span class="badge">OUT: {{ summary.out_count }} cases | Pending ₹ {{ "{:,.2f}".format(summary.out_pending_lakhs) }} Lakhs</span>
+                <span class="badge">IN: {{ summary.in_count }} cases | Pending ₹ {{ (summary.in_pending_lakhs)|inr }} Lakhs</span>
+                <span class="badge">OUT: {{ summary.out_count }} cases | Pending ₹ {{ (summary.out_pending_lakhs)|inr }} Lakhs</span>
             </div>
         </section>
 
@@ -91,7 +91,7 @@
                             <td>{{ (m.from_tar_type or '-') ~ ' / ' ~ (m.from_recovery_category or '-') }}</td>
                             <td>{{ (m.to_tar_type or '-') ~ ' / ' ~ (m.to_recovery_category or '-') }}</td>
                             <td>{{ m.reason_text or m.reason_code or '' }}</td>
-                            <td>{{ m.pending_total_snapshot|num0 }}</td>
+                            <td>{{ m.pending_total_snapshot|inr }}</td>
                             <td>{{ m.note or '' }}</td>
                         </tr>
                     {% endfor %}

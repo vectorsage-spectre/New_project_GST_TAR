@@ -36,7 +36,7 @@
         <section class="controls">
             <div class="bar">
                 <span class="badge">Total Disposed: {{ total_count }}</span>
-                <span class="badge">Pending Sum (₹ Lakhs): ₹ {{ "{:,.2f}".format(total_pending_lakhs) }}</span>
+                <span class="badge">Pending Sum (₹ Lakhs): ₹ {{ (total_pending_lakhs)|inr }}</span>
                 <a class="metric-link" href="/disposed-cases/export">Download Disposed List</a>
             </div>
         </section>
@@ -66,7 +66,7 @@
                             <td>{{ c.gstin_raw }}</td>
                             <td>{{ c.party_name }}</td>
                             <td>{{ c.oio_display }}</td>
-                            <td>{{ c.pending_total|num0 }}</td>
+                            <td>{{ c.pending_total|inr }}</td>
                             <td><div class="remarks-cell">{{ c.comments }}</div></td>
                         </tr>
                     {% endfor %}
