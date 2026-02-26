@@ -359,7 +359,7 @@ def extract_tar3_predeposit_from_comments(comments):
 
 def get_predeposit_amount_for_case(case_obj):
     base = extract_amount_from_text(case_obj.predeposit_details)
-    if case_obj.appeal_status == "TAR-3" and base <= 0.0:
+    if case_obj.appeal_status in {"TAR-1", "TAR-3"} and base <= 0.0:
         base = extract_tar3_predeposit_from_comments(case_obj.comments)
     return float(base or 0.0)
 
