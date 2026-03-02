@@ -254,7 +254,7 @@ from models import (
     DisposedCase,
 )
 from flask_migrate import Migrate
-from sqlalchemy import func, case as sql_case, text
+from sqlalchemy import func, case as sql_case, text, or_
 from io import BytesIO
 from fpdf import FPDF
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -560,6 +560,42 @@ def get_filtered_cases(tar_type, user_id):
     return q.all()
 
 
+def apply_smart_case_search(query, model_cls, query_text):
+    qtxt = (query_text or "").strip()
+    if not qtxt:
+        return query
+
+    search_ilike = f"%{qtxt}%"
+    compact_search = re.sub(r"\s+", "", qtxt).lower()
+    compact_like = f"%{compact_search}%"
+
+    fields = [
+        "party_name",
+        "gstin_raw",
+        "oio_number",
+        "oio_display",
+        "serial_no",
+        "range_code",
+        "issue_brief",
+        "comments",
+        "recovery_category",
+        "appeal_status",
+    ]
+    conditions = []
+    for field_name in fields:
+        col = getattr(model_cls, field_name, None)
+        if col is None:
+            continue
+        conditions.append(col.ilike(search_ilike))
+        conditions.append(
+            func.replace(func.lower(func.coalesce(col, "")), " ", "").like(compact_like)
+        )
+
+    if not conditions:
+        return query
+    return query.filter(or_(*conditions))
+
+
 def clean_form_value(field_name, raw_value):
     if raw_value is None:
         return None
@@ -739,6 +775,20 @@ def get_compare_window_utc(compare_month):
     window_start_utc = compare_start_ist - IST_OFFSET
     window_end_utc = compare_end_ist - IST_OFFSET
     window_label = f"{compare_month} ({compare_start_ist.strftime('%d-%m-%Y')} to {compare_end_ist.strftime('%d-%m-%Y')})"
+    return window_start_utc, window_end_utc, window_label
+
+
+def get_details_movement_window_utc(base_month, compare_month):
+    # Details movement should reflect changes from base month period start up to compare cutoff.
+    def month_start_ist(month_key):
+        y, m = month_key.split("-")
+        return datetime(int(y), int(m), 1, 0, 0, 0)
+
+    _, compare_end_utc, _ = get_compare_window_utc(compare_month)
+    base_start_ist = month_start_ist(base_month)
+    window_start_utc = base_start_ist - IST_OFFSET
+    window_end_utc = compare_end_utc
+    window_label = f"{base_month} to {compare_month}"
     return window_start_utc, window_end_utc, window_label
 
 
@@ -1879,6 +1929,80 @@ def range_wise_details():
     )
 
 
+@app.route("/global-case-search")
+def global_case_search():
+    user = get_session_user()
+    if not user:
+        return redirect("/login")
+
+    qtxt = (request.args.get("q") or "").strip()
+    limit = 800
+    live_results = []
+    disposed_results = []
+
+    if qtxt:
+        back_to_search = f"/global-case-search?{urlencode({'q': qtxt})}"
+        case_link_prefix = urlencode({"from_page": back_to_search})
+
+        live_q = Case.query if user.role == "ADMIN" else mapped_case_query(user.id)
+        live_q = apply_smart_case_search(live_q, Case, qtxt)
+        live_rows = (
+            live_q
+            .order_by(func.coalesce(Case.pending_total, 0.0).desc(), Case.id.desc())
+            .limit(limit)
+            .all()
+        )
+        live_results = [
+            {
+                "kind": "LIVE",
+                "tar_type": c.appeal_status or "",
+                "category": c.recovery_category or "",
+                "name": c.party_name or "",
+                "gstin": c.gstin_raw or "",
+                "oio": c.oio_display or "",
+                "pending_lakhs": float((c.pending_total or 0.0) / 100000.0),
+                "range_code": c.range_code or "",
+                "link": f"/case/{c.id}?{case_link_prefix}",
+            }
+            for c in live_rows
+        ]
+
+        disposed_q = DisposedCase.query
+        if user.role != "ADMIN":
+            disposed_q = disposed_q.filter(DisposedCase.disposed_by == user.name)
+        disposed_q = apply_smart_case_search(disposed_q, DisposedCase, qtxt)
+        disposed_rows = (
+            disposed_q
+            .order_by(func.coalesce(DisposedCase.pending_total, 0.0).desc(), DisposedCase.id.desc())
+            .limit(limit)
+            .all()
+        )
+        disposed_results = [
+            {
+                "kind": "DISPOSED",
+                "tar_type": c.original_tar_type or c.appeal_status or "",
+                "category": c.original_recovery_category or c.recovery_category or "",
+                "name": c.party_name or "",
+                "gstin": c.gstin_raw or "",
+                "oio": c.oio_display or "",
+                "pending_lakhs": float((c.pending_total or 0.0) / 100000.0),
+                "range_code": c.range_code or "",
+                "link": f"/disposed-cases/{c.id}",
+            }
+            for c in disposed_rows
+        ]
+
+    return render_template(
+        "global_case_search.html",
+        officer=user.name,
+        role=user.role,
+        q=qtxt,
+        live_results=live_results,
+        disposed_results=disposed_results,
+        total_results=len(live_results) + len(disposed_results),
+    )
+
+
 @app.route("/predeposit/<tar_type>")
 def predeposit_cases(tar_type):
     user = db.session.get(User, session.get("user_id"))
@@ -2034,7 +2158,7 @@ def tar_report_details(tar_type):
     def lakhs(amount):
         return float(amount / 100000.0)
 
-    window_start_utc, window_end_utc, window_label = get_compare_window_utc(compare_month)
+    window_start_utc, window_end_utc, window_label = get_details_movement_window_utc(base_month, compare_month)
 
     receipts_rows = (
         db.session.query(
@@ -2342,9 +2466,12 @@ def export_tar_detail_movements(tar_type, movement_kind):
         return redirect(f"/tar-report-dashboard/details/{tar_type}")
 
     compare_month = request.args.get("compare_month", datetime.now().strftime("%Y-%m")).strip()
+    base_month = request.args.get("base_month", "2026-01").strip()
     if not is_valid_month_key(compare_month):
         compare_month = datetime.now().strftime("%Y-%m")
-    window_start_utc, window_end_utc, _ = get_compare_window_utc(compare_month)
+    if not is_valid_month_key(base_month):
+        base_month = "2026-01"
+    window_start_utc, window_end_utc, _ = get_details_movement_window_utc(base_month, compare_month)
 
     q = (
         db.session.query(CaseMovementLedger)

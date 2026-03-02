@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Case Search</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>Logged in as: <b>{{ officer }}</b></div>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>Global Case Search</h2>
+            <p class="subtitle">Search across live TAR lists and disposed archive in one place.</p>
+        </section>
+
+        <div class="nav">
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/global-case-search">Global Search</a>
+            <a href="/movement-ledger">Movement Ledger</a>
+            <a href="/disposed-cases">Disposed Cases</a>
+        </div>
+
+        <section class="controls">
+            <form method="get" class="bar">
+                <input
+                    type="text"
+                    name="q"
+                    placeholder="Search name, GSTIN, OIO, category, range, remarks..."
+                    value="{{ q or '' }}"
+                    style="min-width: 320px; flex: 1;"
+                    required
+                >
+                <button type="submit">Search</button>
+                <a class="metric-link" href="/global-case-search">Clear</a>
+            </form>
+            {% if q %}
+                <div class="bar">
+                    <span class="badge">Live Matches: {{ live_results|length }}</span>
+                    <span class="badge">Disposed Matches: {{ disposed_results|length }}</span>
+                    <span class="badge">Total Matches: {{ total_results }}</span>
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="table-wrap">
+            {% if not q %}
+                <div class="empty-state">Enter search text to find cases across all TAR lists and disposed records.</div>
+            {% else %}
+                <div class="table-container">
+                    <table>
+                        <tr>
+                            <th>Section</th>
+                            <th>TAR</th>
+                            <th>Category</th>
+                            <th>Name</th>
+                            <th>GSTIN</th>
+                            <th>OIO</th>
+                            <th>Pending (₹ Lakhs)</th>
+                            <th>Range</th>
+                            <th>Action</th>
+                        </tr>
+                        {% for row in live_results %}
+                            <tr>
+                                <td>{{ row.kind }}</td>
+                                <td>{{ row.tar_type }}</td>
+                                <td>{{ row.category }}</td>
+                                <td>{{ row.name }}</td>
+                                <td>{{ row.gstin }}</td>
+                                <td>{{ row.oio }}</td>
+                                <td>₹ {{ row.pending_lakhs|inr }}</td>
+                                <td>{{ row.range_code }}</td>
+                                <td><a href="{{ row.link }}">Open</a></td>
+                            </tr>
+                        {% endfor %}
+                        {% for row in disposed_results %}
+                            <tr>
+                                <td>{{ row.kind }}</td>
+                                <td>{{ row.tar_type }}</td>
+                                <td>{{ row.category }}</td>
+                                <td>{{ row.name }}</td>
+                                <td>{{ row.gstin }}</td>
+                                <td>{{ row.oio }}</td>
+                                <td>₹ {{ row.pending_lakhs|inr }}</td>
+                                <td>{{ row.range_code }}</td>
+                                <td><a href="{{ row.link }}">Open</a></td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                    {% if total_results == 0 %}
+                        <div class="empty-state">No matching results found.</div>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </section>
+    </div>
+</div>
+</body>
+</html>
