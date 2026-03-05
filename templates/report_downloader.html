@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Downloader</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>Logged in as: <b>{{ officer }}</b></div>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>Report Downloader</h2>
+            <p class="subtitle">One-click download center for TAR case lists, receipts, and disposals.</p>
+        </section>
+
+        <div class="nav">
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/report-downloader">Report Downloader</a>
+            <a href="/movement-ledger">Movement Ledger</a>
+            <a href="/disposed-cases">Disposed Cases</a>
+        </div>
+
+        <section class="controls">
+            <form method="get" class="bar">
+                <label>Base Month
+                    <input type="month" name="base_month" value="{{ base_month }}" required>
+                </label>
+                <label>Compare Month
+                    <input type="month" name="compare_month" value="{{ compare_month }}" required>
+                </label>
+                <button type="submit">Apply Period</button>
+                <a class="metric-link" href="/report-downloader">Reset</a>
+            </form>
+            <div class="bar">
+                <span class="badge">Movement Period: {{ base_month }} to {{ compare_month }}</span>
+                <span class="badge">Total Buttons: 9</span>
+            </div>
+            <p class="subtitle">
+                Receipts include new cases and inward category/TAR movement. Disposals include outward category/TAR movement and disposed transitions.
+            </p>
+            <p class="subtitle">
+                Movement exports include mandatory trace columns: <b>From TAR, From Category, To TAR, To Category</b>.
+            </p>
+        </section>
+
+        <section class="dashboard-wrap">
+            <h3>1. Case Lists (3)</h3>
+            <div class="dashboard-grid">
+                {% for btn in case_buttons %}
+                    <article class="metric-card">
+                        <h3>{{ btn.tar }}</h3>
+                        <div class="metric-actions">
+                            <a class="metric-link" href="{{ btn.href }}">{{ btn.label }}</a>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+
+            <div class="split-block">
+                <h3>2. Receipts and Disposals (6)</h3>
+                <div class="dashboard-grid">
+                    {% for btn in movement_buttons %}
+                        <article class="metric-card">
+                            <h3>{{ btn.tar }} - {{ btn.kind|title }}</h3>
+                            <div class="metric-actions">
+                                <a class="metric-link" href="{{ btn.href }}">{{ btn.label }}</a>
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+</body>
+</html>

@@ -2067,6 +2067,51 @@ def predeposit_cases(tar_type):
     )
 
 
+@app.route("/report-downloader")
+def report_downloader():
+    user = get_session_user()
+    if not user:
+        return redirect("/login")
+
+    base_month = (request.args.get("base_month") or "2026-01").strip()
+    compare_month = (request.args.get("compare_month") or datetime.now().strftime("%Y-%m")).strip()
+    if not is_valid_month_key(base_month):
+        base_month = "2026-01"
+    if not is_valid_month_key(compare_month):
+        compare_month = datetime.now().strftime("%Y-%m")
+
+    tar_types = ["TAR-1", "TAR-2", "TAR-3"]
+    case_buttons = [
+        {"tar": tar, "href": f"/live/{tar}/export", "label": f"Download {tar} Case List"}
+        for tar in tar_types
+    ]
+    movement_buttons = []
+    for tar in tar_types:
+        qs = urlencode({"base_month": base_month, "compare_month": compare_month})
+        movement_buttons.append({
+            "tar": tar,
+            "kind": "receipts",
+            "href": f"/tar-report-dashboard/details/{tar}/export/receipts?{qs}",
+            "label": f"Download {tar} Receipts",
+        })
+        movement_buttons.append({
+            "tar": tar,
+            "kind": "disposals",
+            "href": f"/tar-report-dashboard/details/{tar}/export/disposals?{qs}",
+            "label": f"Download {tar} Disposals",
+        })
+
+    return render_template(
+        "report_downloader.html",
+        officer=user.name,
+        role=user.role,
+        base_month=base_month,
+        compare_month=compare_month,
+        case_buttons=case_buttons,
+        movement_buttons=movement_buttons,
+    )
+
+
 @app.route("/tar-report-dashboard/seed-month", methods=["POST"])
 def seed_month_snapshot():
     user = db.session.get(User, session.get("user_id"))
