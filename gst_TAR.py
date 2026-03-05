@@ -2279,6 +2279,7 @@ def tar_report_details(tar_type):
             {"key": "dif_taxpayer", "label": "Decided in favour of taxpayer"},
             {"key": "part_dept", "label": "Decided partially in favour of Deptt"},
             {"key": "part_taxpayer", "label": "Decided partially in favour of Taxpayer"},
+            {"key": "transfer_jurisdiction", "label": "Transfer to other jurisdiction / Litigation forum / Remanded back"},
             {"key": "transferred_total", "label": "Transferred Total"},
             {"key": "closing", "label": "Closing Balance"},
         ]
@@ -2331,28 +2332,23 @@ def tar_report_details(tar_type):
             out_key("dif_taxpayer", ["T1_TAXPAYER"])
             out_key("part_dept", ["T1_PART_DEPT"])
             out_key("part_taxpayer", ["T1_PART_TAXPAYER"])
-
-            tc, tp = movement_sum_cat(from_tar=tar_type, from_cat=cat, reason_codes=["T1_TRANSFER"])
-            rc, rp = movement_sum_cat(from_tar=tar_type, from_cat=cat, reason_codes=["T1_REPEAT"])
-            pc, pp = movement_sum_cat(from_tar=tar_type, from_cat=cat, reason_codes=["T1_PAID"])
-            transferred_c = tc + rc + pc
-            transferred_p = tp + rp + pp
-            out_counts += transferred_c
-            out_pending += transferred_p
-            row["transferred_total"] = {"count": transferred_c, "pending_lakhs": lakhs(transferred_p)}
+            tjc, tjp = movement_sum_cat(from_tar=tar_type, from_cat=cat, reason_codes=["T1_TRANSFER"])
+            out_counts += tjc
+            out_pending += tjp
+            row["transfer_jurisdiction"] = {"count": tjc, "pending_lakhs": lakhs(tjp)}
+            # Transferred Total = all outward movements in TAR-1.
+            row["transferred_total"] = {"count": out_counts, "pending_lakhs": lakhs(out_pending)}
 
         elif tar_type == "TAR-2":
             out_key("appeal_filed", ["T2_APPEAL_FILED"])
             out_key("no_appeal", ["T2_NO_APPEAL"])
-
             tc, tp = movement_sum_cat(from_tar=tar_type, from_cat=cat, reason_codes=["T2_TRANSFER"])
             rc, rp = movement_sum_cat(from_tar=tar_type, from_cat=cat, reason_codes=["T2_REPEAT"])
             pc, pp = movement_sum_cat(from_tar=tar_type, from_cat=cat, reason_codes=["T2_PAID"])
-            transferred_c = tc + rc + pc
-            transferred_p = tp + rp + pp
-            out_counts += transferred_c
-            out_pending += transferred_p
-            row["transferred_total"] = {"count": transferred_c, "pending_lakhs": lakhs(transferred_p)}
+            out_counts += (tc + rc + pc)
+            out_pending += (tp + rp + pp)
+            # Transferred Total = all outward movements in TAR-2.
+            row["transferred_total"] = {"count": out_counts, "pending_lakhs": lakhs(out_pending)}
 
         else:  # TAR-3
             out_key("arrears_paid", ["T3_PAID"])
@@ -2360,11 +2356,10 @@ def tar_report_details(tar_type):
             ac, ap = movement_sum_cat(from_tar=tar_type, from_cat=cat, reason_codes=["T3_APPEAL_FILED"])
             tc, tp = movement_sum_cat(from_tar=tar_type, from_cat=cat, reason_codes=["T3_TRANSFER"])
             rc, rp = movement_sum_cat(from_tar=tar_type, from_cat=cat, reason_codes=["T3_REPEAT"])
-            transferred_c = ac + tc + rc
-            transferred_p = ap + tp + rp
-            out_counts += transferred_c
-            out_pending += transferred_p
-            row["transferred_total"] = {"count": transferred_c, "pending_lakhs": lakhs(transferred_p)}
+            out_counts += (ac + tc + rc)
+            out_pending += (ap + tp + rp)
+            # Transferred Total = all outward movements in TAR-3.
+            row["transferred_total"] = {"count": out_counts, "pending_lakhs": lakhs(out_pending)}
 
         closing_c = opening_c + receipts_c - out_counts
         closing_p_l = opening_p_l + receipts_p_l - lakhs(out_pending)
