@@ -1001,8 +1001,8 @@ def archive_and_delete_case(case_obj, disposed_by, reason_code=None, reason_text
     )
     db.session.add(disposed)
 
-    # Remove mappings
-    CaseUserMapping.query.filter_by(case_id=case_obj.id).delete()
+    # Keep mappings for historical movement attribution in detail reports.
+    # Live list queries always join with Case table, so orphan mapping rows do not appear in live views.
     # Delete case itself
     db.session.delete(case_obj)
 
@@ -1112,6 +1112,22 @@ def save_monthly_snapshot_all_users(snapshot_month, overwrite=False):
 
 def get_session_user():
     return db.session.get(User, session.get("user_id"))
+
+
+def apply_movement_visibility_filter(query, user):
+    # ADMIN can view all movement rows.
+    if not user or user.role == "ADMIN":
+        return query
+    mapped_case_ids = (
+        db.session.query(CaseUserMapping.case_id)
+        .filter(CaseUserMapping.user_id == user.id)
+    )
+    return query.filter(
+        or_(
+            CaseMovementLedger.case_id.in_(mapped_case_ids),
+            CaseMovementLedger.moved_by == user.name,
+        )
+    )
 
 
 def normalize_username(name):
@@ -2167,16 +2183,14 @@ def tar_report_details(tar_type):
             func.coalesce(func.sum(CaseMovementLedger.pending_total_snapshot), 0.0),
         )
         .select_from(CaseMovementLedger)
-        .join(CaseUserMapping, CaseUserMapping.case_id == CaseMovementLedger.case_id)
         .filter(
-            CaseUserMapping.user_id == user.id,
             CaseMovementLedger.to_tar_type == tar_type,
             CaseMovementLedger.moved_at >= window_start_utc,
             CaseMovementLedger.moved_at < window_end_utc,
         )
         .group_by(CaseMovementLedger.to_recovery_category)
-        .all()
     )
+    receipts_rows = apply_movement_visibility_filter(receipts_rows, user).all()
     disposals_rows = (
         db.session.query(
             CaseMovementLedger.from_recovery_category,
@@ -2184,16 +2198,14 @@ def tar_report_details(tar_type):
             func.coalesce(func.sum(CaseMovementLedger.pending_total_snapshot), 0.0),
         )
         .select_from(CaseMovementLedger)
-        .join(CaseUserMapping, CaseUserMapping.case_id == CaseMovementLedger.case_id)
         .filter(
-            CaseUserMapping.user_id == user.id,
             CaseMovementLedger.from_tar_type == tar_type,
             CaseMovementLedger.moved_at >= window_start_utc,
             CaseMovementLedger.moved_at < window_end_utc,
         )
         .group_by(CaseMovementLedger.from_recovery_category)
-        .all()
     )
+    disposals_rows = apply_movement_visibility_filter(disposals_rows, user).all()
 
     receipts_map = {
         (cat or "UNSPECIFIED"): {"count": int(cnt or 0), "pending": float(pending or 0.0)}
@@ -2211,13 +2223,12 @@ def tar_report_details(tar_type):
                 func.coalesce(func.sum(CaseMovementLedger.pending_total_snapshot), 0.0),
             )
             .select_from(CaseMovementLedger)
-            .join(CaseUserMapping, CaseUserMapping.case_id == CaseMovementLedger.case_id)
             .filter(
-                CaseUserMapping.user_id == user.id,
                 CaseMovementLedger.moved_at >= window_start_utc,
                 CaseMovementLedger.moved_at < window_end_utc,
             )
         )
+        qq = apply_movement_visibility_filter(qq, user)
         if from_tar is not None:
             qq = qq.filter(CaseMovementLedger.from_tar_type == from_tar)
         if to_tar is not None:
@@ -2241,13 +2252,12 @@ def tar_report_details(tar_type):
                 func.coalesce(func.sum(CaseMovementLedger.pending_total_snapshot), 0.0),
             )
             .select_from(CaseMovementLedger)
-            .join(CaseUserMapping, CaseUserMapping.case_id == CaseMovementLedger.case_id)
             .filter(
-                CaseUserMapping.user_id == user.id,
                 CaseMovementLedger.moved_at >= window_start_utc,
                 CaseMovementLedger.moved_at < window_end_utc,
             )
         )
+        qq = apply_movement_visibility_filter(qq, user)
         if from_tar is not None:
             qq = qq.filter(CaseMovementLedger.from_tar_type == from_tar)
         if to_tar is not None:
@@ -2476,13 +2486,12 @@ def export_tar_detail_movements(tar_type, movement_kind):
     q = (
         db.session.query(CaseMovementLedger)
         .select_from(CaseMovementLedger)
-        .join(CaseUserMapping, CaseUserMapping.case_id == CaseMovementLedger.case_id)
         .filter(
-            CaseUserMapping.user_id == user.id,
             CaseMovementLedger.moved_at >= window_start_utc,
             CaseMovementLedger.moved_at < window_end_utc,
         )
     )
+    q = apply_movement_visibility_filter(q, user)
     if movement_kind == "receipts":
         q = q.filter(CaseMovementLedger.to_tar_type == tar_type)
     else:
