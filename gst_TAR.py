@@ -2112,6 +2112,253 @@ def report_downloader():
     )
 
 
+@app.route("/tar-transition-report")
+def tar_transition_report():
+    user = get_session_user()
+    if not user:
+        return redirect("/login")
+
+    base_month = (request.args.get("base_month") or "2026-01").strip()
+    compare_month = (request.args.get("compare_month") or datetime.now().strftime("%Y-%m")).strip()
+    if not is_valid_month_key(base_month):
+        base_month = "2026-01"
+    if not is_valid_month_key(compare_month):
+        compare_month = datetime.now().strftime("%Y-%m")
+
+    window_start_utc, window_end_utc, window_label = get_details_movement_window_utc(base_month, compare_month)
+    nodes = ["TAR-1", "TAR-2", "TAR-3", "DISPOSED"]
+
+    q = (
+        db.session.query(
+            CaseMovementLedger.from_tar_type,
+            CaseMovementLedger.to_tar_type,
+            func.count(CaseMovementLedger.id),
+            func.coalesce(func.sum(CaseMovementLedger.pending_total_snapshot), 0.0),
+        )
+        .select_from(CaseMovementLedger)
+        .filter(
+            CaseMovementLedger.moved_at >= window_start_utc,
+            CaseMovementLedger.moved_at < window_end_utc,
+        )
+    )
+    q = apply_movement_visibility_filter(q, user)
+    grouped = q.group_by(CaseMovementLedger.from_tar_type, CaseMovementLedger.to_tar_type).all()
+
+    matrix = {
+        fr: {to: {"count": 0, "amount_lakhs": 0.0} for to in nodes}
+        for fr in nodes
+    }
+    pair_rows = []
+    total_moves = 0
+    total_amount = 0.0
+    cross_moves = 0
+    cross_amount = 0.0
+
+    for from_tar, to_tar, cnt, amt in grouped:
+        from_key = (from_tar or "").strip().upper()
+        to_key = (to_tar or "").strip().upper()
+        if from_key not in nodes or to_key not in nodes:
+            continue
+        c = int(cnt or 0)
+        a = float(amt or 0.0)
+        matrix[from_key][to_key]["count"] += c
+        matrix[from_key][to_key]["amount_lakhs"] += float(a / 100000.0)
+
+        total_moves += c
+        total_amount += a
+        if from_key != to_key:
+            cross_moves += c
+            cross_amount += a
+
+        pair_rows.append({
+            "from_tar": from_key,
+            "to_tar": to_key,
+            "count": c,
+            "amount_lakhs": float(a / 100000.0),
+        })
+
+    row_totals = {}
+    col_totals = {n: {"count": 0, "amount_lakhs": 0.0} for n in nodes}
+    for fr in nodes:
+        rc = 0
+        ra = 0.0
+        for to in nodes:
+            rc += int(matrix[fr][to]["count"] or 0)
+            ra += float(matrix[fr][to]["amount_lakhs"] or 0.0)
+            col_totals[to]["count"] += int(matrix[fr][to]["count"] or 0)
+            col_totals[to]["amount_lakhs"] += float(matrix[fr][to]["amount_lakhs"] or 0.0)
+        row_totals[fr] = {"count": rc, "amount_lakhs": ra}
+
+    pair_rows = sorted(pair_rows, key=lambda r: (r["count"], r["amount_lakhs"]), reverse=True)
+
+    return render_template(
+        "tar_transition_report.html",
+        officer=user.name,
+        role=user.role,
+        base_month=base_month,
+        compare_month=compare_month,
+        window_label=window_label,
+        nodes=nodes,
+        matrix=matrix,
+        row_totals=row_totals,
+        col_totals=col_totals,
+        pair_rows=pair_rows,
+        total_moves=total_moves,
+        total_amount_lakhs=float(total_amount / 100000.0),
+        cross_moves=cross_moves,
+        cross_amount_lakhs=float(cross_amount / 100000.0),
+    )
+
+
+@app.route("/tar-transition-report/export")
+def export_tar_transition_report():
+    user = get_session_user()
+    if not user:
+        return redirect("/login")
+
+    base_month = (request.args.get("base_month") or "2026-01").strip()
+    compare_month = (request.args.get("compare_month") or datetime.now().strftime("%Y-%m")).strip()
+    if not is_valid_month_key(base_month):
+        base_month = "2026-01"
+    if not is_valid_month_key(compare_month):
+        compare_month = datetime.now().strftime("%Y-%m")
+    window_start_utc, window_end_utc, _ = get_details_movement_window_utc(base_month, compare_month)
+
+    q = (
+        db.session.query(
+            CaseMovementLedger.from_tar_type,
+            CaseMovementLedger.to_tar_type,
+            func.count(CaseMovementLedger.id),
+            func.coalesce(func.sum(CaseMovementLedger.pending_total_snapshot), 0.0),
+        )
+        .select_from(CaseMovementLedger)
+        .filter(
+            CaseMovementLedger.moved_at >= window_start_utc,
+            CaseMovementLedger.moved_at < window_end_utc,
+        )
+    )
+    q = apply_movement_visibility_filter(q, user)
+    grouped = q.group_by(CaseMovementLedger.from_tar_type, CaseMovementLedger.to_tar_type).all()
+
+    rows = []
+    for from_tar, to_tar, cnt, amt in grouped:
+        rows.append({
+            "From TAR": from_tar or "",
+            "To TAR": to_tar or "",
+            "Count": int(cnt or 0),
+            "Amount (₹)": float(amt or 0.0),
+            "Amount (₹ Lakhs)": float((amt or 0.0) / 100000.0),
+            "Base Month": base_month,
+            "Compare Month": compare_month,
+        })
+
+    rows = sorted(rows, key=lambda r: (r["Count"], r["Amount (₹)"]), reverse=True)
+    df = pd.DataFrame(rows, columns=[
+        "From TAR", "To TAR", "Count", "Amount (₹)", "Amount (₹ Lakhs)", "Base Month", "Compare Month"
+    ])
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="TAR Transition Matrix")
+    output.seek(0)
+    filename = f"tar_transition_{base_month}_to_{compare_month}.xlsx"
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/category-flowchart")
+def category_flowchart():
+    user = get_session_user()
+    if not user:
+        return redirect("/login")
+
+    base_month = (request.args.get("base_month") or "2026-01").strip()
+    compare_month = (request.args.get("compare_month") or "2026-02").strip()
+    min_count_raw = (request.args.get("min_count") or "1").strip()
+    if not is_valid_month_key(base_month):
+        base_month = "2026-01"
+    if not is_valid_month_key(compare_month):
+        compare_month = "2026-02"
+    try:
+        min_count = max(1, int(min_count_raw))
+    except Exception:
+        min_count = 1
+
+    window_start_utc, window_end_utc, window_label = get_details_movement_window_utc(base_month, compare_month)
+
+    q = (
+        db.session.query(
+            CaseMovementLedger.from_recovery_category,
+            CaseMovementLedger.to_recovery_category,
+            func.count(CaseMovementLedger.id),
+            func.coalesce(func.sum(CaseMovementLedger.pending_total_snapshot), 0.0),
+        )
+        .select_from(CaseMovementLedger)
+        .filter(
+            CaseMovementLedger.moved_at >= window_start_utc,
+            CaseMovementLedger.moved_at < window_end_utc,
+        )
+    )
+    q = apply_movement_visibility_filter(q, user)
+    grouped = (
+        q.group_by(
+            CaseMovementLedger.from_recovery_category,
+            CaseMovementLedger.to_recovery_category,
+        )
+        .all()
+    )
+
+    category_rank = {}
+    idx = 0
+    for tar in ["TAR-1", "TAR-2", "TAR-3"]:
+        for cat in TAR_CATEGORY_MAP.get(tar, []):
+            category_rank[cat] = idx
+            idx += 1
+    category_rank[DISPOSED_CATEGORY_CODE] = idx + 1
+
+    flow_pairs = []
+    categories = set()
+    max_count = 1
+    for from_cat, to_cat, cnt, amt in grouped:
+        fc = (from_cat or "UNSPECIFIED").strip() or "UNSPECIFIED"
+        tc = (to_cat or "UNSPECIFIED").strip() or "UNSPECIFIED"
+        c = int(cnt or 0)
+        if c < min_count:
+            continue
+        a = float(amt or 0.0)
+        categories.add(fc)
+        categories.add(tc)
+        max_count = max(max_count, c)
+        flow_pairs.append({
+            "from": fc,
+            "to": tc,
+            "count": c,
+            "amount_lakhs": float(a / 100000.0),
+        })
+
+    ordered_categories = sorted(
+        categories,
+        key=lambda c: (category_rank.get(c, 9999), c),
+    )
+
+    return render_template(
+        "category_flowchart.html",
+        officer=user.name,
+        role=user.role,
+        base_month=base_month,
+        compare_month=compare_month,
+        window_label=window_label,
+        min_count=min_count,
+        categories=ordered_categories,
+        flow_pairs=flow_pairs,
+        max_count=max_count,
+        total_flows=len(flow_pairs),
+    )
+
+
 @app.route("/tar-report-dashboard/seed-month", methods=["POST"])
 def seed_month_snapshot():
     user = db.session.get(User, session.get("user_id"))
@@ -3369,7 +3616,7 @@ def case_update(id):
     if not case:
         return redirect("/tar-report-dashboard")
     has_access = CaseUserMapping.query.filter_by(case_id=case.id, user_id=user.id).first()
-    if not has_access:
+    if user.role != "ADMIN" and not has_access:
         return "Not Allowed ❌"
     from_page = request.args.get('from_page', '/live/TAR-3')
 
@@ -3836,7 +4083,103 @@ def disposed_case_detail(id):
         "disposed_case_detail.html",
         officer=user.name,
         disposed_case=dc,
+        tar3_options=TAR_CATEGORY_MAP["TAR-3"],
     )
+
+
+@app.route("/disposed-cases/<int:id>/restore-tar3", methods=["POST"])
+def restore_disposed_case_to_tar3(id):
+    user = get_session_user()
+    if not user:
+        return redirect("/login")
+
+    dc = db.session.get(DisposedCase, id)
+    if not dc:
+        return redirect("/disposed-cases")
+    if user.role != "ADMIN" and dc.disposed_by != user.name:
+        return "Not Allowed ❌"
+
+    target_category = (request.form.get("target_category") or "").strip()
+    if target_category not in TAR_CATEGORY_MAP["TAR-3"]:
+        target_category = "A9"
+
+    restored = Case(
+        recovery_category=target_category,
+        serial_no=dc.serial_no,
+        party_name=dc.party_name,
+        gstin_raw=dc.gstin_raw,
+        gstin_verified=None,
+        oio_display=dc.oio_display,
+        oio_number=dc.oio_number,
+        oio_date=dc.oio_date,
+        issue_brief=dc.issue_brief,
+        tax_oio=dc.tax_oio,
+        interest_oio=dc.interest_oio,
+        penalty_oio=dc.penalty_oio,
+        total_oio=dc.total_oio,
+        gst_realised=dc.gst_realised,
+        interest_realised=dc.interest_realised,
+        penalty_realised=dc.penalty_realised,
+        total_realised=dc.total_realised,
+        predeposit_details=dc.predeposit_details,
+        pending_gst=dc.pending_gst,
+        pending_interest=dc.pending_interest,
+        pending_penalty=dc.pending_penalty,
+        pending_total=dc.pending_total,
+        comments=dc.comments,
+        range_code=dc.range_code,
+        internal_id=dc.internal_id,
+        appeal_status="TAR-3",
+        assigned_to=None,
+    )
+    db.session.add(restored)
+    db.session.flush()
+
+    # Restore mappings from original case id where possible, else map to current user.
+    mapped_user_ids = [
+        int(uid)
+        for (uid,) in db.session.query(CaseUserMapping.user_id)
+        .filter(CaseUserMapping.case_id == int(dc.original_case_id or 0))
+        .distinct()
+        .all()
+    ]
+    if not mapped_user_ids:
+        mapped_user_ids = [user.id]
+    for uid in mapped_user_ids:
+        db.session.add(
+            CaseUserMapping(
+                case_id=restored.id,
+                user_id=uid,
+                mapped_by=user.name,
+            )
+        )
+
+    db.session.add(
+        CaseChange(
+            case_id=restored.id,
+            changed_by=user.name,
+            field_changed="restored_from_disposed",
+            old_value=f"disposed_case_id={dc.id}",
+            new_value=f"TAR-3/{target_category}",
+        )
+    )
+    log_case_movement(
+        restored,
+        moved_by=user.name,
+        source="MANUAL",
+        from_tar="DISPOSED",
+        to_tar="TAR-3",
+        from_cat=DISPOSED_CATEGORY_CODE,
+        to_cat=target_category,
+        note="Disposed case restored to live TAR-3.",
+        reason_code="RESTORE_DISPOSED",
+        reason_text="Disposed case restored to live TAR-3.",
+    )
+
+    db.session.delete(dc)
+    db.session.commit()
+    save_state_snapshot()
+    return redirect("/live/TAR-3?msg=restored")
 
 
 @app.route("/disposed-cases/export")
@@ -4202,6 +4545,34 @@ def movement_ledger():
         summary=summary,
         category_options=CATEGORY_OPTIONS,
     )
+
+
+@app.route("/movement-ledger/open/<int:case_id>")
+def movement_open_case(case_id):
+    user = get_session_user()
+    if not user:
+        return redirect("/login")
+
+    case = db.session.get(Case, case_id)
+    if case:
+        if user.role != "ADMIN":
+            has_access = CaseUserMapping.query.filter_by(case_id=case.id, user_id=user.id).first()
+            if not has_access:
+                return "Not Allowed ❌"
+        return redirect(f"/case/{case.id}?from_page=/movement-ledger")
+
+    disposed = (
+        DisposedCase.query
+        .filter_by(original_case_id=case_id)
+        .order_by(DisposedCase.disposed_at.desc(), DisposedCase.id.desc())
+        .first()
+    )
+    if disposed:
+        if user.role != "ADMIN" and disposed.disposed_by != user.name:
+            return "Not Allowed ❌"
+        return redirect(f"/disposed-cases/{disposed.id}")
+
+    return redirect("/movement-ledger?msg=case_not_found")
 
 
 # ----------------- LOGOUT ROUTE --------------------

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Category Flowchart</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>Logged in as: <b>{{ officer }}</b></div>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>Category Movement Flowchart</h2>
+            <p class="subtitle">Flows from each category to each category with movement counts.</p>
+        </section>
+
+        <div class="nav">
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/report-downloader">Report Downloader</a>
+            <a href="/tar-transition-report">TAR Transition</a>
+            <a href="/category-flowchart">Category Flowchart</a>
+            <a href="/movement-ledger">Movement Ledger</a>
+        </div>
+
+        <section class="controls">
+            <form method="get" class="bar">
+                <label>Base Month
+                    <input type="month" name="base_month" value="{{ base_month }}" required>
+                </label>
+                <label>Compare Month
+                    <input type="month" name="compare_month" value="{{ compare_month }}" required>
+                </label>
+                <label>Min Count
+                    <input type="number" min="1" step="1" name="min_count" value="{{ min_count }}" required style="width:100px;">
+                </label>
+                <button type="submit">Apply</button>
+            </form>
+            <div class="bar">
+                <span class="badge">Window: {{ window_label }}</span>
+                <span class="badge">Flows Shown: {{ total_flows }}</span>
+            </div>
+        </section>
+
+        <section class="table-wrap">
+            <div class="table-container" style="padding: 8px;">
+                <svg id="flowSvg" width="100%" style="display:block; min-height: 600px;"></svg>
+            </div>
+        </section>
+
+        <section class="table-wrap">
+            <div class="table-container">
+                <table>
+                    <tr>
+                        <th>From Category</th>
+                        <th>To Category</th>
+                        <th>Count</th>
+                        <th>Amount (₹ Lakhs)</th>
+                    </tr>
+                    {% for p in flow_pairs %}
+                    <tr>
+                        <td>{{ p.from }}</td>
+                        <td>{{ p.to }}</td>
+                        <td>{{ p.count }}</td>
+                        <td>₹ {{ p.amount_lakhs|inr }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not flow_pairs %}
+                    <tr><td colspan="4">No category movements in selected window.</td></tr>
+                    {% endif %}
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script>
+(() => {
+    const categories = {{ categories|tojson }};
+    const pairs = {{ flow_pairs|tojson }};
+    const maxCount = Number({{ max_count|default(1) }}) || 1;
+    const svg = document.getElementById("flowSvg");
+    if (!svg) return;
+
+    const ns = "http://www.w3.org/2000/svg";
+    const width = Math.max(1200, svg.clientWidth || 1200);
+    const topPad = 38;
+    const leftX = 190;
+    const rightX = width - 260;
+    const rowGap = 40;
+    const height = Math.max(620, topPad + categories.length * rowGap + 60);
+
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.setAttribute("height", String(height));
+
+    const byCatY = {};
+    categories.forEach((cat, i) => {
+        byCatY[cat] = topPad + i * rowGap;
+    });
+
+    function add(tag, attrs, text) {
+        const el = document.createElementNS(ns, tag);
+        Object.keys(attrs || {}).forEach(k => el.setAttribute(k, attrs[k]));
+        if (text != null) el.textContent = text;
+        svg.appendChild(el);
+        return el;
+    }
+
+    add("text", {x: leftX - 120, y: 20, fill: "#1a325a", "font-size": "14", "font-weight": "700"}, "From Category");
+    add("text", {x: rightX + 30, y: 20, fill: "#1a325a", "font-size": "14", "font-weight": "700"}, "To Category");
+
+    categories.forEach(cat => {
+        const y = byCatY[cat];
+        add("rect", {x: leftX - 140, y: y - 12, width: 120, height: 24, rx: 6, fill: "#f2f7ff", stroke: "#bfd2f3"});
+        add("text", {x: leftX - 80, y: y + 5, "text-anchor": "middle", fill: "#18335b", "font-size": "12"}, cat);
+
+        add("rect", {x: rightX + 20, y: y - 12, width: 160, height: 24, rx: 6, fill: "#f2f7ff", stroke: "#bfd2f3"});
+        add("text", {x: rightX + 100, y: y + 5, "text-anchor": "middle", fill: "#18335b", "font-size": "12"}, cat);
+    });
+
+    function colorForPair(fr, to) {
+        const s = (fr + ">" + to);
+        let h = 0;
+        for (let i = 0; i < s.length; i++) h = (h * 33 + s.charCodeAt(i)) % 360;
+        return `hsl(${h}, 72%, 43%)`;
+    }
+
+    pairs.forEach(p => {
+        const y1 = byCatY[p.from];
+        const y2 = byCatY[p.to];
+        if (y1 == null || y2 == null) return;
+        const strokeW = 1 + (12 * (Number(p.count || 0) / maxCount));
+        const color = colorForPair(p.from, p.to);
+        const c1x = leftX + (rightX - leftX) * 0.35;
+        const c2x = leftX + (rightX - leftX) * 0.65;
+        const d = `M ${leftX} ${y1} C ${c1x} ${y1}, ${c2x} ${y2}, ${rightX} ${y2}`;
+        add("path", {d, fill: "none", stroke: color, "stroke-width": strokeW.toFixed(2), "stroke-opacity": "0.55"});
+
+        const mx = (leftX + rightX) / 2;
+        const my = (y1 + y2) / 2;
+        add("text", {x: mx, y: my - 4, "text-anchor": "middle", fill: "#11274a", "font-size": "11", "font-weight": "700"}, String(p.count));
+    });
+})();
+</script>
+</body>
+</html>

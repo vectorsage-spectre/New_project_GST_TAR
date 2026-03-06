@@ -144,6 +144,8 @@
             <div class="success">New case added successfully.</div>
         {% elif request.args.get('msg') == 'disposed' %}
             <div class="success">Case disposed and archived successfully.</div>
+        {% elif request.args.get('msg') == 'restored' %}
+            <div class="success">Disposed case restored to TAR-3 successfully.</div>
         {% endif %}
 
         <section class="table-wrap">

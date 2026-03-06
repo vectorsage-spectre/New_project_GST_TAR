@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAR Transition Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <div class="card">
+        <section class="hero">
+            <div class="topbar">
+                <div class="logo-chip">
+                    <img src="{{ url_for('static', filename='cbic-logo.svg') }}" alt="CBIC Logo">
+                    <div>Logged in as: <b>{{ officer }}</b></div>
+                    <a class="profile-chip" href="/profile" title="Profile">{{ officer[0]|upper }}</a>
+                </div>
+                <a href="/logout">Logout</a>
+            </div>
+            <h2>TAR Transition Report</h2>
+            <p class="subtitle">Numeric TAR-to-TAR movement comparison for selected months.</p>
+        </section>
+
+        <div class="nav">
+            <a href="/tar-report-dashboard">Dashboard</a>
+            <a href="/report-downloader">Report Downloader</a>
+            <a href="/tar-transition-report">TAR Transition</a>
+            <a href="/movement-ledger">Movement Ledger</a>
+        </div>
+
+        <section class="controls">
+            <form method="get" class="bar">
+                <label>Base Month
+                    <input type="month" name="base_month" value="{{ base_month }}" required>
+                </label>
+                <label>Compare Month
+                    <input type="month" name="compare_month" value="{{ compare_month }}" required>
+                </label>
+                <button type="submit">Generate</button>
+                <a class="metric-link" href="/tar-transition-report/export?base_month={{ base_month }}&compare_month={{ compare_month }}">Download Matrix Excel</a>
+            </form>
+            <div class="bar">
+                <span class="badge">Window: {{ window_label }}</span>
+                <span class="badge">Total Moves: {{ total_moves }}</span>
+                <span class="badge">Total Amount: ₹ {{ total_amount_lakhs|inr }} Lakhs</span>
+                <span class="badge">Cross-TAR Moves: {{ cross_moves }}</span>
+                <span class="badge">Cross-TAR Amount: ₹ {{ cross_amount_lakhs|inr }} Lakhs</span>
+            </div>
+        </section>
+
+        <section class="table-wrap">
+            <h3>TAR to TAR Matrix (Count | ₹ Lakhs)</h3>
+            <div class="table-container">
+                <table>
+                    <tr>
+                        <th>From \ To</th>
+                        {% for to in nodes %}
+                            <th>{{ to }}</th>
+                        {% endfor %}
+                        <th>Row Total</th>
+                    </tr>
+                    {% for fr in nodes %}
+                    <tr>
+                        <td><b>{{ fr }}</b></td>
+                        {% for to in nodes %}
+                            <td>
+                                {{ matrix[fr][to].count }} | ₹ {{ matrix[fr][to].amount_lakhs|inr }}
+                            </td>
+                        {% endfor %}
+                        <td><b>{{ row_totals[fr].count }} | ₹ {{ row_totals[fr].amount_lakhs|inr }}</b></td>
+                    </tr>
+                    {% endfor %}
+                    <tr>
+                        <td><b>Column Total</b></td>
+                        {% for to in nodes %}
+                            <td><b>{{ col_totals[to].count }} | ₹ {{ col_totals[to].amount_lakhs|inr }}</b></td>
+                        {% endfor %}
+                        <td><b>{{ total_moves }} | ₹ {{ total_amount_lakhs|inr }}</b></td>
+                    </tr>
+                </table>
+            </div>
+        </section>
+
+        <section class="table-wrap">
+            <h3>Pair-wise Summary</h3>
+            <div class="table-container">
+                <table>
+                    <tr>
+                        <th>From TAR</th>
+                        <th>To TAR</th>
+                        <th>Count</th>
+                        <th>Amount (₹ Lakhs)</th>
+                    </tr>
+                    {% for r in pair_rows %}
+                    <tr>
+                        <td>{{ r.from_tar }}</td>
+                        <td>{{ r.to_tar }}</td>
+                        <td>{{ r.count }}</td>
+                        <td>₹ {{ r.amount_lakhs|inr }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not pair_rows %}
+                    <tr><td colspan="4">No movements in selected period.</td></tr>
+                    {% endif %}
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+</body>
+</html>

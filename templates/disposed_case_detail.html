@@ -22,7 +22,7 @@
                 <a href="/logout">Logout</a>
             </div>
             <h2>Disposed Case Snapshot</h2>
-            <p class="subtitle">Read-only details of archived disposed case.</p>
+            <p class="subtitle">Archived disposed case details with controlled restore option.</p>
         </section>
 
         <div class="nav">
@@ -31,6 +31,18 @@
             <a href="/movement-ledger">Movement Ledger</a>
             <a href="/audit-trail">Audit Trail</a>
         </div>
+
+        <section class="controls">
+            <form method="post" action="/disposed-cases/{{ disposed_case.id }}/restore-tar3" class="bar" onsubmit="return confirm('Restore this disposed case to TAR-3?');">
+                <label>Restore Category (TAR-3)</label>
+                <select name="target_category" required>
+                    {% for cat in tar3_options %}
+                        <option value="{{ cat }}" {% if cat == 'A9' %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit">Restore to TAR-3</button>
+            </form>
+        </section>
 
         <section class="table-wrap">
             <div class="table-container">

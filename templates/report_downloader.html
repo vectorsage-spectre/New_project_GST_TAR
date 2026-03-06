@@ -28,6 +28,7 @@
         <div class="nav">
             <a href="/tar-report-dashboard">Dashboard</a>
             <a href="/report-downloader">Report Downloader</a>
+            <a href="/tar-transition-report?base_month={{ base_month }}&compare_month={{ compare_month }}">TAR Transition</a>
             <a href="/movement-ledger">Movement Ledger</a>
             <a href="/disposed-cases">Disposed Cases</a>
         </div>
@@ -79,6 +80,14 @@
                             </div>
                         </article>
                     {% endfor %}
+                </div>
+            </div>
+
+            <div class="split-block">
+                <h3>3. Consolidated TAR Transition Matrix</h3>
+                <div class="bar">
+                    <a class="metric-link" href="/tar-transition-report?base_month={{ base_month }}&compare_month={{ compare_month }}">Open TAR Transition Report</a>
+                    <a class="metric-link" href="/tar-transition-report/export?base_month={{ base_month }}&compare_month={{ compare_month }}">Download TAR Transition Matrix</a>
                 </div>
             </div>
         </section>

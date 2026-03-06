@@ -33,6 +33,9 @@
         </div>
 
         <section class="controls">
+            {% if request.args.get('msg') == 'case_not_found' %}
+                <div class="error">Case not found in live or disposed records.</div>
+            {% endif %}
             <form method="get" class="bar">
                 <b>Filter</b>
                 <select name="direction">
@@ -85,7 +88,7 @@
                     {% for m in movements %}
                         <tr>
                             <td>{{ m.moved_at|ist_datetime }}</td>
-                            <td><a href="/case/{{ m.case_id }}">{{ m.case_id }}</a></td>
+                            <td><a href="/movement-ledger/open/{{ m.case_id }}">Open {{ m.case_id }}</a></td>
                             <td>{{ m.moved_by }}</td>
                             <td>{{ m.source }}</td>
                             <td>{{ (m.from_tar_type or '-') ~ ' / ' ~ (m.from_recovery_category or '-') }}</td>
